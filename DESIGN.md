@@ -173,7 +173,20 @@ Evidence pointers are the biggest token win: `read_session(id, 44-52)` instead o
 
 ### Phase 4 — Optional leverage
 - Cursor adapter (reverse-engineer store.db blobs — budgeted brittle, lowest value)
-- sqlite-vec only if benchmark shows FTS5 misses
+- ~~sqlite-vec only if benchmark shows FTS5 misses~~ → **PULLED FORWARD 2026-06-08.**
+  Benchmark showed FTS5 misses (ground-truth at ranks 6–9; R@5 85%), so hybrid
+  retrieval shipped: FTS5/BM25 + semantic vectors, fused + explainable, behind a
+  pluggable `Embedder` seam (`retrieval.ts`). Vectors stored as BLOBs (brute-force
+  cosine at current scale; sqlite-vec deferred — unnecessary + network-blocked).
+  **Open:** default embedder is a zero-dep hash-n-gram placeholder ⇒ hybrid ≈ lexical;
+  a real sentence model (MiniLM/onnx or embeddings API) is the actual semantic lift.
+- **Validation/freshness layer (the competitive leapfrog) — SHIPPED 2026-06-08.**
+  `validate.ts`: cards validated against current code (git-SHA diff / mtime fallback)
+  → fresh|stale|broken|unknown, surfaced in get_card, search, and tier-0 inject.
+  Demote-not-hide. Only GitHub Copilot Memory does anything comparable, walled-garden.
+- **Card dedup/consolidation — SHIPPED 2026-06-08.** `dedup.ts`: conservative
+  file+intent Jaccard; collapse only on strong dual-signal, else link. `link` writes
+  consolidation.json; search filters hidden cards (still reachable by id).
 - Rich typed edges once supersedes precision proven
 - Obsidian graph view (free via format compatibility)
 
