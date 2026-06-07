@@ -19,12 +19,18 @@ import type { CardData } from "./extractor.js";
 import type { SessionMeta } from "./types.js";
 
 export interface CardEdges {
+  /** Each "<cardId>|<why>" — why is a mechanical overlap reason, e.g.
+   * "3 shared files" or "4 shared entities". Lets an agent judge an edge
+   * without paying to open the other card. */
   relatesTo: string[];
   supersedes: string[];
   supersededBy: string[];
 }
 
-interface Node {
+// Exported so the dedup/consolidation pass (dedup.ts) can reuse the exact same
+// loaded-and-filtered node shape (real files, stoplisted entities) — keeping a
+// single definition of "what a card looks like to the graph layer".
+export interface Node {
   cardId: string;
   meta: SessionMeta;
   card?: CardData;
@@ -88,8 +94,13 @@ export function computeEdges(nodes: Node[]): Map<string, CardEdges> {
       const related = sharedFiles >= 2 || sharedEntities >= 3;
       if (!related) continue;
       const score = sharedFiles * 2 + sharedEntities;
-      edges.get(a.cardId)!.relatesTo.push(`${b.cardId}|${score}`);
-      edges.get(b.cardId)!.relatesTo.push(`${a.cardId}|${score}`);
+      const why = [
+        sharedFiles ? `${sharedFiles} shared file${sharedFiles > 1 ? "s" : ""}` : "",
+        sharedEntities ? `${sharedEntities} shared entit${sharedEntities > 1 ? "ies" : "y"}` : "",
+      ].filter(Boolean).join(", ");
+      // encode score|why; score is used only for sorting, then stripped
+      edges.get(a.cardId)!.relatesTo.push(`${b.cardId}|${score}|${why}`);
+      edges.get(b.cardId)!.relatesTo.push(`${a.cardId}|${score}|${why}`);
       // supersedes: later node with explicit continuity signal
       const [earlier, later] = a.date <= b.date ? [a, b] : [b, a];
       const laterText = `${later.meta.title} ${later.card?.intent ?? ""}`;
@@ -99,12 +110,15 @@ export function computeEdges(nodes: Node[]): Map<string, CardEdges> {
       }
     }
   }
-  // keep top-5 relates-to by overlap score, strip scores
+  // keep top-5 relates-to by overlap score, strip score but KEEP the why
   for (const e of edges.values()) {
     e.relatesTo = [...new Set(e.relatesTo)]
       .sort((x, y) => Number(y.split("|")[1]) - Number(x.split("|")[1]))
       .slice(0, 5)
-      .map((s) => s.split("|")[0]!);
+      .map((s) => {
+        const [id, , why] = s.split("|");
+        return why ? `${id}|${why}` : id!;
+      });
     e.supersedes = [...new Set(e.supersedes)];
     e.supersededBy = [...new Set(e.supersededBy)];
   }

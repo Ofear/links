@@ -7,6 +7,8 @@
   "bin": { "links": "./bin/links.js" },
   "scripts": {
     "ingest": "tsx src/cli.ts ingest",
+    "init": "node bin/links.js init",
+    "test": "tsx src/scanner.test.ts && tsx src/config.test.ts && tsx src/retrieval.test.ts",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {

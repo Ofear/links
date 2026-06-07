@@ -12,8 +12,9 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { z } from "zod";
 import { readMessagesFor } from "./adapters/index.js";
-import { getSessionRow, searchIndex } from "./db.js";
+import { getSessionRow, hybridSearch } from "./db.js";
 import { redact } from "./scanner.js";
+import { validateCard, freshnessBadge } from "./validate.js";
 
 const { scopeNames } = await import("./config.js");
 const scope = process.argv[2] ?? "";
@@ -35,24 +36,27 @@ server.registerTool(
   "search",
   {
     description:
-      "STEP 1 of the links workflow. Search past coding sessions (intent, summaries, decisions, " +
-      "issues, entities, user rules). Returns compact index lines (~30 tokens each). " +
+      "STEP 1 of the links workflow. HYBRID search past coding sessions (intent, summaries, " +
+      "decisions, issues, entities, user rules): fuses keyword/BM25 with semantic vector " +
+      "similarity, so PARAPHRASE queries match too (e.g. 'speed up the build' finds 'reduce " +
+      "webpack compile time'). Returns compact index lines (~30 tokens each), each annotated " +
+      "with WHY it matched (lexical / semantic / both). " +
       "ALWAYS start here before re-investigating anything that may have been solved before. " +
       "Then call get_card on promising hits — NEVER read_session without get_card first. " +
       `NOTE: this server covers the '${scope}' scope only; machine/system-level fixes (VPN, ` +
       "drivers, OS, desktop apps) live in links-personal — query that server for those.",
     inputSchema: {
-      query: z.string().describe("keywords: error codes, file names, services, intents"),
+      query: z.string().describe("keywords OR natural-language description: error codes, file names, services, intents"),
       limit: z.number().int().min(1).max(25).default(10),
     },
   },
   async ({ query, limit }) => {
-    const rows = searchIndex(SCOPE_DIR, query, limit);
+    const rows = hybridSearch(SCOPE_DIR, query, limit);
     return {
       content: [{
         type: "text",
         text: rows.length
-          ? rows.map(indexLine).join("\n")
+          ? rows.map((r) => `${indexLine(r)}\n    ↳ matched via ${r.why} · score ${r.score.toFixed(2)}`).join("\n")
           : "No matching past sessions. This appears to be new ground — proceed with fresh investigation.",
       }],
     };
@@ -114,8 +118,10 @@ async function liveStatusLine(cardId: string): Promise<string | null> {
 }
 
 /**
- * Query-time staleness: compare mtimes of the files this session touched
- * against the session's end time. Computed live — never stored, never stale.
+ * Query-time freshness: validate the files this session touched against current
+ * reality. Uses the git-SHA diff when a commit was recorded (the strong signal),
+ * else falls back to mtime-vs-endedAt. Computed live — never stored, never stale.
+ * (Delegates to validate.ts; the git-SHA path is the leapfrog over mtime-only.)
  */
 async function stalenessLine(cardId: string): Promise<string | null> {
   const row = getSessionRow(SCOPE_DIR, cardId);
@@ -123,21 +129,22 @@ async function stalenessLine(cardId: string): Promise<string | null> {
   const meta = JSON.parse((row as unknown as { meta_json: string }).meta_json) as {
     filesTouched: string[];
     endedAt?: string;
+    cwd?: string;
+    gitCommit?: string;
+    gitBranch?: string;
   };
-  if (!meta.endedAt || !meta.filesTouched.length) return null;
-  const endedMs = Date.parse(meta.endedAt);
-  const { stat } = await import("node:fs/promises");
-  let changed = 0, gone = 0, checked = 0;
-  for (const f of meta.filesTouched) {
-    checked++;
-    try {
-      if ((await stat(f)).mtimeMs > endedMs) changed++;
-    } catch {
-      gone++;
-    }
-  }
-  if (!changed && !gone) return `✓ freshness: none of the ${checked} files this session touched have changed since.`;
-  return `⚠ staleness: ${changed}/${checked} files touched have changed since this session${gone ? `, ${gone} no longer exist` : ""} — verify against current code before trusting implementation details. Decisions/rationale age better than code state.`;
+  if (!meta.filesTouched?.length) return null;
+  const verdict = await validateCard({
+    filesTouched: meta.filesTouched,
+    endedAt: meta.endedAt,
+    cwd: meta.cwd,
+    gitCommit: meta.gitCommit,
+    gitBranch: meta.gitBranch,
+  });
+  // suppress the no-signal 'unknown' case to avoid noise on cards we can't check;
+  // fresh/stale/broken are all actionable and get surfaced.
+  if (verdict.freshness === "unknown") return null;
+  return freshnessBadge(verdict);
 }
 
 server.registerTool(
@@ -192,9 +199,12 @@ server.registerTool(
     ) as Record<string, { relatesTo: string[]; supersedes: string[]; supersededBy: string[] }>;
     const e = graph[card_id];
     if (!e) return { content: [{ type: "text", text: `No edges for ${card_id}.` }] };
-    const describe = (id: string) => {
-      const row = getSessionRow(SCOPE_DIR, id);
-      return row ? indexLine(row) : id;
+    const describe = (entry: string) => {
+      // relates-to edges encode "<id>|<why>"; supersede edges are bare ids
+      const [id, why] = entry.split("|");
+      const row = getSessionRow(SCOPE_DIR, id!);
+      const line = row ? indexLine(row) : id!;
+      return why ? `${line}  ← ${why}` : line;
     };
     const parts: string[] = [];
     if (e.supersededBy.length) parts.push(`⚠ SUPERSEDED BY (read these for current state):\n${e.supersededBy.map(describe).join("\n")}`);

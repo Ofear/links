@@ -11,11 +11,11 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { scanAllSessions } from "./adapters/index.js";
 import { cardId, writeCard } from "./cards.js";
-import { scopeForCwd, scopeNames } from "./config.js";
+import { scopeForCwd, scopeNames, storeDir } from "./config.js";
 import { extractCard } from "./extractor.js";
 import type { SessionMeta } from "./types.js";
 
-const STORE = join(import.meta.dirname, "..", "store");
+const STORE = storeDir();
 const SCHEMA = join(import.meta.dirname, "..", "schema", "card.schema.json");
 
 async function loadIndex(): Promise<SessionMeta[]> {
@@ -56,24 +56,32 @@ async function extract(idPrefixes: string[]): Promise<void> {
       });
   }
   let ok = 0, failed = 0;
+  const runStart = Date.now();
+  const total = targets.length;
+  let done = 0;
   for (const meta of targets) {
+    done++;
     if (meta.gate.verdict !== "card") {
-      console.log(`- ${meta.id.slice(0, 8)}: index-only, skipping`);
+      console.log(`[${done}/${total}] - ${meta.id.slice(0, 8)}: index-only, skipping`);
       continue;
     }
-    console.log(`▸ ${meta.id.slice(0, 8)} (${meta.project}, ${meta.sizeKb}KB): ${meta.title.slice(0, 70)}`);
+    // running ETA from mean time/session so far — progress you can act on
+    const elapsed = (Date.now() - runStart) / 1000;
+    const mean = done > 1 ? elapsed / (done - 1) : 0;
+    const eta = mean ? ` · ~${Math.round((mean * (total - done + 1)) / 60)}m left` : "";
+    console.log(`[${done}/${total}]${eta} ▸ ${meta.id.slice(0, 8)} (${meta.project}, ${meta.sizeKb}KB): ${meta.title.slice(0, 60)}`);
     const t0 = Date.now();
     try {
       const data = await extractCard(meta, SCHEMA, (s) => console.log(s));
       const path = await writeCard(STORE, meta, data);
       ok++;
-      console.log(`  ✓ ${path} (${((Date.now() - t0) / 1000).toFixed(0)}s, outcome: ${data.outcome})`);
+      console.log(`  ✓ [${ok} done, ${failed} failed] ${((Date.now() - t0) / 1000).toFixed(0)}s, outcome: ${data.outcome}`);
     } catch (err) {
       failed++;
-      console.error(`  ✗ FAILED: ${String(err).slice(0, 400)}`);
+      console.error(`  ✗ [${ok} done, ${failed} failed] FAILED: ${String(err).slice(0, 400)}`);
     }
   }
-  console.log(`\ndone: ${ok} ok, ${failed} failed`);
+  console.log(`\ndone: ${ok} ok, ${failed} failed (${((Date.now() - runStart) / 1000 / 60).toFixed(1)}m total)`);
   if (failed) process.exitCode = 1;
 }
 
@@ -154,7 +162,29 @@ async function inject(cwd: string): Promise<void> {
     parts.push(`## Pinned notes\n${notes.join("\n")}`);
   }
   if (rows.length) {
-    const lines = rows.map((r) => `- ${r.card_id} · ${r.date} · ${r.outcome} · ${r.intent.slice(0, 100)}`);
+    const { getSessionRow } = await import("./db.js");
+    const { validateCard } = await import("./validate.js");
+    // Flag stale/broken recent cards right in the push so tier-0 never silently
+    // asserts a fact whose code has since moved. Cheap: validateCard caches per
+    // (repo, SHA) and these rows share one project ⇒ usually one git call.
+    const lines = await Promise.all(
+      rows.map(async (r) => {
+        const base = `- ${r.card_id} · ${r.date} · ${r.outcome} · ${r.intent.slice(0, 100)}`;
+        const sr = getSessionRow(scopeDir, r.card_id);
+        if (!sr) return base;
+        const m = JSON.parse((sr as unknown as { meta_json: string }).meta_json) as {
+          filesTouched?: string[]; endedAt?: string; cwd?: string; gitCommit?: string; gitBranch?: string;
+        };
+        if (!m.filesTouched?.length) return base;
+        const v = await validateCard({
+          filesTouched: m.filesTouched, endedAt: m.endedAt, cwd: m.cwd,
+          gitCommit: m.gitCommit, gitBranch: m.gitBranch,
+        });
+        return v.freshness === "stale" ? `${base}  [⚠ stale]`
+          : v.freshness === "broken" ? `${base}  [⛔ code moved]`
+          : base;
+      }),
+    );
     parts.push(
       `## Recent sessions (${rows.length})\nBefore re-investigating anything, check if it was already solved: ` +
         `use links-${scope} MCP (search → get_card → read_session with msg ranges). Pin durable facts with pin_note.\n` +
@@ -168,6 +198,7 @@ async function inject(cwd: string): Promise<void> {
 async function link(): Promise<void> {
   const { loadNodes, computeEdges } = await import("./linker.js");
   const { renderCard } = await import("./cards.js");
+  const { planDedup } = await import("./dedup.js");
   for (const scope of scopeNames()) {
     const scopeDir = join(STORE, scope);
     const nodes = await loadNodes(scopeDir);
@@ -186,7 +217,15 @@ async function link(): Promise<void> {
       join(scopeDir, "links.json"),
       JSON.stringify(Object.fromEntries([...edges].filter(([, e]) => e.relatesTo.length || e.supersedes.length || e.supersededBy.length)), null, 1),
     );
-    console.log(`${scope}: ${withCard} cards re-rendered, ${totalEdges} edges, ${superseded} marked superseded`);
+    // high-precision dedup: hide near-duplicate cards from default search (still
+    // reachable by id / expand_links — never deleted). consolidation.json is the
+    // auditable record the search layer reads.
+    const plan = planDedup(nodes, edges);
+    await writeFile(join(scopeDir, "consolidation.json"), JSON.stringify(plan, null, 1));
+    console.log(
+      `${scope}: ${withCard} cards re-rendered, ${totalEdges} edges, ${superseded} marked superseded, ` +
+        `${plan.hidden.length} hidden as duplicates (${plan.decisions.length} consolidation decisions)`,
+    );
   }
 }
 

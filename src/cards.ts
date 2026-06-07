@@ -79,7 +79,12 @@ export function renderCard(meta: SessionMeta, data: CardData, links?: CardLinks)
     linkLines.push(...links.supersededBy.map((id) => `- ⚠ superseded-by [[${id}]] — read that card instead for current state`));
   }
   if (links?.supersedes.length) linkLines.push(...links.supersedes.map((id) => `- supersedes [[${id}]]`));
-  if (links?.relatesTo.length) linkLines.push(...links.relatesTo.map((id) => `- relates-to [[${id}]]`));
+  if (links?.relatesTo.length) {
+    linkLines.push(...links.relatesTo.map((entry) => {
+      const [id, why] = entry.split("|"); // edges encode "<id>|<why>"; why may be absent on legacy graphs
+      return why ? `- relates-to [[${id}]] (${why})` : `- relates-to [[${id}]]`;
+    }));
+  }
   if (!linkLines.length) linkLines.push("- (no high-confidence links)");
 
   const body = [

@@ -1,0 +1,27 @@
+{
+  "comment": "Tiny synthetic benchmark used by `tsx src/bench.ts --fixture`. Runs fully offline (no codex / no paid API) so the harness and its token math can be proven green end-to-end. ground_truth = synthetic session-id prefixes present in fixture/store/demo. The fixture store is built deterministically by the bench runner from these cards.",
+  "contaminated": [],
+  "questions": [
+    {
+      "id": "FX1",
+      "set": "heldout",
+      "question": "How did we fix the flaky widget upload timeout in the demo service?",
+      "ground_truth": ["fixupld1"],
+      "expect_keywords": ["timeout", "retry", "upload"]
+    },
+    {
+      "id": "FX2",
+      "set": "heldout",
+      "question": "Where is the reference code for parsing the demo CSV export?",
+      "ground_truth": ["csvprse2"],
+      "expect_keywords": ["csv", "parse", "demo/parse.ts"]
+    },
+    {
+      "id": "FX3",
+      "set": "negative",
+      "question": "How did we configure GraphQL subscriptions over websockets in the demo service?",
+      "ground_truth": [],
+      "expect_keywords": ["graphql", "subscription", "websocket"]
+    }
+  ]
+}
