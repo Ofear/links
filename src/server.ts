@@ -14,7 +14,7 @@ import { z } from "zod";
 import { readMessagesFor } from "./adapters/index.js";
 import { getSessionRow, hybridSearch } from "./db.js";
 import { redact } from "./scanner.js";
-import { validateCard, freshnessBadge } from "./validate.js";
+import { validateCard, freshnessBadge, type FreshnessVerdict } from "./validate.js";
 
 const { scopeNames } = await import("./config.js");
 const scope = process.argv[2] ?? "";
@@ -52,11 +52,13 @@ server.registerTool(
   },
   async ({ query, limit }) => {
     const rows = hybridSearch(SCOPE_DIR, query, limit);
+    // flag stale/broken hits inline so a bad match is visible before spending a get_card
+    const suffixes = await Promise.all(rows.map((r) => cardVerdict(r.card_id).then(freshnessSuffix)));
     return {
       content: [{
         type: "text",
         text: rows.length
-          ? rows.map((r) => `${indexLine(r)}\n    ↳ matched via ${r.why} · score ${r.score.toFixed(2)}`).join("\n")
+          ? rows.map((r, i) => `${indexLine(r)}${suffixes[i]}\n    ↳ matched via ${r.why} · score ${r.score.toFixed(2)}`).join("\n")
           : "No matching past sessions. This appears to be new ground — proceed with fresh investigation.",
       }],
     };
@@ -123,28 +125,39 @@ async function liveStatusLine(cardId: string): Promise<string | null> {
  * else falls back to mtime-vs-endedAt. Computed live — never stored, never stale.
  * (Delegates to validate.ts; the git-SHA path is the leapfrog over mtime-only.)
  */
-async function stalenessLine(cardId: string): Promise<string | null> {
+async function cardVerdict(cardId: string): Promise<FreshnessVerdict | null> {
   const row = getSessionRow(SCOPE_DIR, cardId);
   if (!row) return null;
   const meta = JSON.parse((row as unknown as { meta_json: string }).meta_json) as {
-    filesTouched: string[];
+    filesTouched?: string[];
     endedAt?: string;
     cwd?: string;
     gitCommit?: string;
     gitBranch?: string;
   };
   if (!meta.filesTouched?.length) return null;
-  const verdict = await validateCard({
+  return validateCard({
     filesTouched: meta.filesTouched,
     endedAt: meta.endedAt,
     cwd: meta.cwd,
     gitCommit: meta.gitCommit,
     gitBranch: meta.gitBranch,
   });
-  // suppress the no-signal 'unknown' case to avoid noise on cards we can't check;
-  // fresh/stale/broken are all actionable and get surfaced.
-  if (verdict.freshness === "unknown") return null;
-  return freshnessBadge(verdict);
+}
+
+/** Full freshness badge for get_card; null when nothing actionable to surface. */
+async function stalenessLine(cardId: string): Promise<string | null> {
+  const v = await cardVerdict(cardId);
+  // suppress the no-signal 'unknown' case to avoid noise; fresh/stale/broken are actionable.
+  if (!v || v.freshness === "unknown") return null;
+  return freshnessBadge(v);
+}
+
+/** Compact per-hit suffix for search index lines — only the actionable warnings. */
+function freshnessSuffix(v: FreshnessVerdict | null): string {
+  return v?.freshness === "stale" ? "  [⚠ stale]"
+    : v?.freshness === "broken" ? "  [⛔ code moved]"
+    : "";
 }
 
 server.registerTool(

@@ -15,6 +15,7 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { cardId as cardIdOf } from "./cards.js";
+import { claudeProjectsDir } from "./config.js";
 import type { CardData } from "./extractor.js";
 import type { SessionMeta } from "./types.js";
 
@@ -44,9 +45,11 @@ const ENTITY_STOPLIST = new Set([
   "glow-up", "glow up", "typescript", "javascript", "react", "yarn",
 ]);
 
+// Transcript/memory files live under the Claude Code projects root (config-driven).
+const CLAUDE_PROJECTS_ROOT = claudeProjectsDir();
 /** Memory/index files are shared by most sessions in a project — not signal. */
 function isRealFile(path: string): boolean {
-  return !path.includes("/.claude/projects/") && !path.endsWith("MEMORY.md");
+  return !path.startsWith(CLAUDE_PROJECTS_ROOT) && !path.endsWith("MEMORY.md");
 }
 
 const CONTINUITY_RE = /handoff|continued|continuing|pick(?:s|ing)? up where|left off/i;
