@@ -22,10 +22,10 @@ import { readdir, stat } from "node:fs/promises";
 import { createInterface } from "node:readline";
 import { homedir } from "node:os";
 import { basename, join } from "node:path";
-import { config, scopeForCwd as scopeOf } from "../config.js";
+import { claudeProjectsDir, config, scopeForCwd as scopeOf } from "../config.js";
 import type { GateDecision, NormalizedMessage, SessionMeta } from "../types.js";
 
-const ROOT = join(homedir(), ".claude", "projects");
+const ROOT = claudeProjectsDir();
 
 const FILE_WRITE_TOOLS = new Set(["Edit", "Write", "NotebookEdit", "MultiEdit"]);
 const EXCERPT_LEN = 220;

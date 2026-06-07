@@ -49,10 +49,16 @@ export function redact(text: string): { text: string; hits: Record<string, numbe
     });
   }
   for (const re of ENTROPY_RES) {
-    out = out.replace(re, (m) => {
+    out = out.replace(re, (m, offset: number, full: string) => {
       if (!looksHighEntropy(m)) return m;
-      // UUIDs-without-dashes and git SHAs are 40-hex — keep git SHAs readable
-      // is impossible to distinguish reliably; prefer safety, redact.
+      // A 40/64-hex SHA on a line WE author (`git_commit:`) is a commit hash from
+      // ground truth, not a secret — keep it readable. The label prefix is the
+      // discriminator: real secrets never sit on a git_commit line. Everywhere
+      // else, 40-hex stays redacted (UUID-no-dash / unknown blob — prefer safety).
+      const lineStart = full.lastIndexOf("\n", offset) + 1;
+      if (/^git_commit:\s*$/.test(full.slice(lineStart, offset)) && /^[0-9a-f]{40}$|^[0-9a-f]{64}$/i.test(m)) {
+        return m;
+      }
       hits["high-entropy"] = (hits["high-entropy"] ?? 0) + 1;
       return "[REDACTED:high-entropy]";
     });

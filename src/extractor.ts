@@ -49,19 +49,21 @@ export interface CardData {
 let codexBin: string | undefined;
 export async function resolveCodex(): Promise<string> {
   if (codexBin) return codexBin;
-  const { config } = await import("./config.js");
+  const { config, expandHome } = await import("./config.js");
   if (config().codexBin) return (codexBin = config().codexBin!);
   if (process.env.CODEX_BIN) return (codexBin = process.env.CODEX_BIN);
-  // Cursor's openai.chatgpt extension bundles a working native binary
-  const extDir = join(homedir(), ".cursor", "extensions");
+  // A bundled native binary (default: Cursor's openai.chatgpt extension) — all
+  // machine-specific bits are config().codexFallback so other OSes can repoint.
+  const fb = config().codexFallback;
+  const extDir = expandHome(fb.extensionsDir);
   const exts = (await readdir(extDir).catch(() => []))
-    .filter((d) => d.startsWith("openai.chatgpt-"))
+    .filter((d) => d.startsWith(fb.extensionPrefix))
     .sort()
     .reverse();
   for (const e of exts) {
-    const candidate = join(extDir, e, "bin", "linux-x86_64", "codex");
+    const candidate = join(extDir, e, fb.binRelPath);
     try {
-      await readFile(join(extDir, e, "bin", "linux-x86_64", "codex-package.json"));
+      await readFile(join(extDir, e, `${fb.binRelPath}-package.json`));
       return (codexBin = candidate);
     } catch {
       /* try next */

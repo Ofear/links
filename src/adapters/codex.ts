@@ -18,13 +18,12 @@
 import { createReadStream } from "node:fs";
 import { readdir, stat } from "node:fs/promises";
 import { createInterface } from "node:readline";
-import { homedir } from "node:os";
 import { basename, join } from "node:path";
-import { scopeForCwd } from "../config.js";
+import { codexSessionsDir, scopeForCwd } from "../config.js";
 import { gateOf } from "./claudeCode.js";
 import type { NormalizedMessage, SessionMeta } from "../types.js";
 
-const ROOT = join(homedir(), ".codex", "sessions");
+const ROOT = codexSessionsDir();
 const EXCERPT_LEN = 220;
 
 interface Envelope {

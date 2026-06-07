@@ -44,4 +44,21 @@ if (prose.includes("REDACTED")) {
 } else {
   console.log("✓ prose survives");
 }
+// regression: a git_commit SHA on its own line is ground truth, not a secret —
+// must survive (else the staleness field is useless). But a 40-hex blob ELSEWHERE
+// must still be redacted.
+const sha = redact("git_commit: 3b9d4bcb122b43e0d771b71d91f9392ea315c9f6").text;
+if (sha.includes("REDACTED")) {
+  console.error(`✗ OVER-REDACTION of git_commit SHA: ${sha}`);
+  failed++;
+} else {
+  console.log("✓ git_commit SHA survives");
+}
+const looseHex = redact("blob 3b9d4bcb122b43e0d771b71d91f9392ea315c9f6 here").text;
+if (!looseHex.includes("REDACTED")) {
+  console.error(`✗ LEAK: bare 40-hex blob off a git_commit line should redact → ${looseHex}`);
+  failed++;
+} else {
+  console.log("✓ non-git 40-hex still redacted");
+}
 process.exit(failed ? 1 : 0);

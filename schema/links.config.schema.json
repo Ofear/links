@@ -1,0 +1,84 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "links.config.schema.json",
+  "title": "links.config.json",
+  "description": "Per-machine configuration for `links`. Every field is optional; omitted fields fall back to the DEFAULTS in src/config.ts (which reproduce the original author's machine). `links init` writes a personalized starting point. Paths support a leading ~ for the home directory.",
+  "type": "object",
+  "additionalProperties": true,
+  "properties": {
+    "scopes": {
+      "description": "Ordered cwd-prefix -> scope-name rules. First match wins; the LAST entry is the fallback scope for any cwd that matches nothing earlier. Each scope becomes store/<name>/ and an MCP server suffix (links-<name>).",
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "cwdPrefix"],
+        "properties": {
+          "name": { "type": "string", "minLength": 1 },
+          "cwdPrefix": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Match a session whose cwd starts with this prefix (leading ~ expands to home)."
+          }
+        }
+      }
+    },
+    "excludeProjectDirs": {
+      "description": "Claude Code project directory names that are synthetic corpora (e.g. claude-mem observer re-narrations) and must never be ingested.",
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "storeDir": {
+      "description": "Where derived cards/index/rules live. Default: <repo>/store. Leading ~ expands to home.",
+      "type": "string"
+    },
+    "sources": {
+      "description": "Raw, read-only per-tool session source roots. Never copied; only scanned.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "claudeProjects": {
+          "type": "string",
+          "description": "Claude Code transcripts root. Default ~/.claude/projects."
+        },
+        "codexSessions": {
+          "type": "string",
+          "description": "Codex rollout transcripts root. Default ~/.codex/sessions."
+        }
+      }
+    },
+    "extractionEngine": {
+      "description": "Which engine turns a transcript into a card. Only `codex` is wired today; `claude` and `api-key` are reserved for the publish step.",
+      "type": "string",
+      "enum": ["codex", "claude", "api-key"]
+    },
+    "codexBin": {
+      "description": "Explicit path to the codex binary, bypassing auto-discovery.",
+      "type": "string"
+    },
+    "codexFallback": {
+      "description": "How to locate a bundled codex binary when none is on PATH and no codexBin is set. Defaults target Cursor's openai.chatgpt extension on Linux x86_64.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "extensionsDir": { "type": "string", "description": "Directory holding tool extensions. Default ~/.cursor/extensions." },
+        "extensionPrefix": { "type": "string", "description": "Extension dir name prefix to match. Default openai.chatgpt-." },
+        "binRelPath": { "type": "string", "description": "Relative path to the codex binary inside the matched extension." }
+      }
+    },
+    "gate": {
+      "description": "Triviality gate thresholds — sessions below these get an index line but no card / LLM call.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "minSizeKb": { "type": "integer", "minimum": 0 },
+        "junkTitleRe": {
+          "type": "string",
+          "description": "Case-insensitive regex; a short session whose title matches is treated as a junk ask."
+        },
+        "maxJunkUserTurns": { "type": "integer", "minimum": 0 }
+      }
+    }
+  }
+}
