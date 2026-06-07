@@ -1,0 +1,84 @@
+session_id	project	date	size_kb	user_turns	title
+53ee0998-9a62-4749-855f-b2be1f76d84a	Projects/Wix/projectX	2026-06-07	268	5	What is the repo of this project?
+985a776a-9f85-4a41-9985-7583e5d0c887	Projects/Wix/glow/up	2026-06-07	2937	4	Do we have new permissions? bookings:site_importer:v1:bookings_site_importer:has_services bookings:site_importer:v1:bookings_migration:migrate_bookings
+51d5fe29-a268-4bb8-bf24-92ba570d432d	Projects/Personal	2026-06-07	928	8	I have an idea to a new project. the name of the project is links I want to be able to have a index of linked data think about memory for agent but that contain all the information via linked data for example, i'm runnin
+520b8330-35d5-48d5-8d0e-63f9f2cce107	Projects/Personal	2026-06-07	172	1	Plugin:wix-deepdive:wix-deepdive MCP Server Reconnecting to plugin:wix-deepdive:wix-deepdive ⎿ Failed to reconnect to plugin:wix-deepdive:wix-deepdive: -32000 <- I think the latest is not installed
+cb4b1006-56a2-4e4b-8a8d-211e504b1dc0	Projects/Wix/projectX	2026-06-04	3156	23	Is it possible to change this MCP to be a Skill? Do not answer without searching the web.
+efa9ce5c-018d-4798-bb14-31e396ff6403	Projects/Wix	2026-06-04	94	1	hi
+f4b08629-da2d-40f6-b82b-e35aa707d534	Projects/Wix	2026-06-04	37	1	hi
+303aa80e-9296-4a55-8ef5-981eda0b2b6c	Projects/Wix	2026-06-04	41	1	hi
+7c451ab7-eff4-495a-ac85-6fd88b7a7851	Projects/Wix/glow/up	2026-06-04	50	1	cd ..
+7f3c98e1-226f-4002-b05a-74d8cf3db003	Projects/Wix/roundtable/mcp	2026-06-04	500	6	I want to make this mcp as a skill/skills possible?
+410f8500-347a-4a0b-809e-0b6d0c6b382a	/home/ofirh	2026-06-04	92	1	run this: curl -s -X POST http://localhost:33000/api/bookings-site-importer/has-services -H 'Content-Type: application/json' -d '{"sourceUrl":"https://www.vagaro.com/Users/BusinessWidget.aspx?enc=53buYqRPaSP9HQa0F"}' | j
+96e34b11-76bb-4b84-9678-91dba520430a	/home/ofirh	2026-06-04	140	1	# Daily Slack Behavior Review — Ofir Hadad Run this at 5pm every weekday. Follow all steps. ## Context - User: Ofir Hadad (ofirh@wix.com) - Slack user ID: U04NSRB6W15 - Manager: Lital Mor (litalm, U1V7PD9Q8) - Team: Book
+e3f1b2ee-af28-4aeb-812e-ddb109f3c36e	Projects/Wix	2026-06-01	218	4	Use deepdive mcp with req ID: 1780254318.7403173771021338 I want you to find why we got limitation of 12 using the old api we could even pass 52, see erq ID 1780254318.7403173771021338
+9d6ccef1-7f02-472a-be20-1413a51b2b7b	Projects/Wix	2026-05-28	647	8	use deepdive mcp, why this failed: 1779914320.9704373066211330
+3e993f30-9605-452e-9455-2a95ebe3e6ee	Projects/Wix	2026-05-27	51	2	cd ..
+f12390a9-a700-4432-8514-d2dcaadf453a	Projects/Wix/glow/up	2026-05-27	8395	81	Are you activly aware of the all the sessions that we opened for this project?
+23b0da46-80fd-4361-970e-f6ab30437de0	/home/ofirh	2026-05-27	135	1	# Daily Slack Behavior Review — Ofir Hadad Run this at 5pm every weekday. Follow all steps. ## Context - User: Ofir Hadad (ofirh@wix.com) - Slack user ID: U04NSRB6W15 - Manager: Lital Mor (litalm, U1V7PD9Q8) - Team: Book
+ae9db516-4ff1-4ae0-80d7-0063fc714955	/home/ofirh	2026-05-27	514	7	Can you check why after install cursor via the App Center, It still open the old one?
+048a64c5-b738-4a55-8bcf-a14b5604bd65	/home/ofirh	2026-05-27	478	5	is there a repaier mode for ubuntu? [Image #1]
+f06c10f9-ccf6-4b03-91aa-b2f20bb02778	Projects/Wix	2026-05-26	51	1	ls
+6a7eab9d-13f7-4ae9-ac20-05ddb4424a38	Projects/Wix	2026-05-26	2843	35	https://wix.slack.com/archives/C04L2F143FW/p1779793225587059 https://grafana.wixpress.com/d/tjwNppdVk/trace-analytics?orgId=1&refresh=1m&var-service=com.wixpress.bookings.catalog.order.catalog-order-creator&from=2026-05-
+9a414acb-a267-4941-a29b-4604dfa201cf	Projects/Wix/glow/up	2026-05-26	61	1	Do we have any changes that was not pushed to github?
+0916f8f8-8a35-4a8f-9b0c-9890832d6245	Projects/Wix/glow/up	2026-05-26	299	8	show me a list like X -> Y -> Z oh how this E2E works
+432cc05c-fd30-489e-a61f-2799a0dd8d10	/home/ofirh	2026-05-26	136	1	# Daily Slack Behavior Review — Ofir Hadad Run this at 5pm every weekday. Follow all steps. ## Context - User: Ofir Hadad (ofirh@wix.com) - Slack user ID: U04NSRB6W15 - Manager: Lital Mor (litalm, U1V7PD9Q8) - Team: Book
+2cd45b30-c5a3-4c3f-bddb-14b661cf9991	/home/ofirh	2026-05-26	1492	33	https://wix.slack.com/archives/C9ZKTD77A/p1779719387241499
+e91f8acf-31ed-48ca-aeb6-bb38cf62f670	/home/ofirh	2026-05-25	1806	12	I want to updgrade my nvidia drivers
+0f3b9c85-4be8-4fc4-b17c-7a3c35c0df47	/home/ofirh	2026-05-25	136	1	# Daily Slack Behavior Review — Ofir Hadad Run this at 5pm every weekday. Follow all steps. ## Context - User: Ofir Hadad (ofirh@wix.com) - Slack user ID: U04NSRB6W15 - Manager: Lital Mor (litalm, U1V7PD9Q8) - Team: Book
+d9aea312-1ad2-42ff-92bb-5125192d88a6	Projects/Wix/bookings/booking/checkout/owner	2026-05-24	19719	83	hi
+e0a4e068-bea4-446c-851e-d15323c7f41e	Projects/Wix/bookings/booking/checkout/owner	2026-05-24	19902	73	hi
+75482b42-7325-4057-b6c5-a4d12eccf88a	/home/ofirh	2026-05-20	199	4	How can I see tumbnail of the video file [Image #1] ?
+cc689188-78c6-40b8-a886-e1b6ac34941c	Projects/Wix/glow/up	2026-05-19	2679	38	# Glow-Up Claim Flow — Full Handoff ## What we're fixing Booth attendees enter their email at the end of site generation and click "Claim my site". The site needs to transfer from booth account → attendee's primary Wix a
+71b9d18e-38f5-4721-809b-ab888b87e35e	Projects/Wix/glow/up	2026-05-19	121	1	Compiled successfully! Your bundles and other static assets are served from your dev-server. Local: http://localhost:33200/ On Your Network: http://192.168.1.191:33200/ Note that the development build is not optimized. T
+d022e011-2779-4d2e-bbdf-2037d68cb1e7	Projects/Wix	2026-05-18	64	1	https://wix.slack.com/archives/C0AD45P4YKG/p1779081375626779?thread_ts=1777968053.514549&cid=C0AD45P4YKG What does RO means?
+1c56b52d-9749-4b1e-8ae1-970d826c406f	Projects/Wix/glow/up	2026-05-18	128	4	(base) ofirh@ofirh-Legion-7-16IRX9:~/Projects/Wix/glow-up$ yarn ➤ YN0000: · Yarn 4.4.0 ➤ YN0000: ┌ Project validation ➤ YN0057: │ @wix/glow-up: Resolutions field will be ignored ➤ YN0000: └ Completed ➤ YN0000: ┌ Resoluti
+979c89ec-4266-4ff3-ba4e-13f214a8f034	Projects/Wix/glow/up	2026-05-18	140	1	can you list what open tasks we have in Linear?
+d4b6865b-edbc-428f-8a77-d2df4e666ee9	Projects/Wix/glow/up	2026-05-18	2872	9	You are going to do UI/UI changes in this project The existing project was built with FIgma The Figma got re-design'
+a269c82e-e727-4aaa-8ce9-7f61971d4450	Projects/Wix/glow/up	2026-05-18	2543	33	[Image #1] This step take alot of time, and it actually not really update the services with the images. Can we start updating the images even before this step in the background? (right after we done the scrapping?) Then 
+758be7e5-66b5-449f-84e5-b9a8dfed171a	Projects/Wix/glow/up	2026-05-18	5350	68	{ "log": { "version": "1.2", "creator": { "name": "Firefox", "version": "150.0.3" }, "browser": { "name": "Firefox", "version": "150.0.3" }, "pages": [ { "id": "page_1", "pageTimings": { "onContentLoad": -1, "onLoad": -1
+7eb4f3c3-d660-4079-9262-170f15b8aaed	Projects/Personal/dinoMaker	2026-05-18	3297	7	I want to create a webapp that use the camera to capture a child face or child face and torso and to output the image it captured as a Dino human mix after it use a AI to convert it. so it will be like this app showing t
+73ec7bb7-5e5c-4b97-83c6-950546cb52b7	Downloads	2026-05-17	36	1	(base) ofirh@ofirh-Legion-7-16IRX9:~/Downloads$ /home/ofirh/Downloads/wix-linux-toolkit.sh bash: /home/ofirh/Downloads/wix-linux-toolkit.sh: Permission denied
+d3f572d1-7bd2-416b-8e19-2c2d1d1b0db7	Projects/Wix	2026-05-17	1150	18	use deepdive find why the order creation failed 1779017235.795927114711331
+95780f7f-d557-4685-96ff-4e8f15050264	/	2026-05-17	1256	26	why i'm not able to connet to my work vpn?
+fa078b8a-7bb4-49f0-810c-6aca586614a2	/home/ofirh	2026-05-17	770	29	Can I convert chrome extention to FF ?
+9cea4cb0-328b-4b7e-bcc2-d42a867500f5	/home/ofirh	2026-05-17	476	3	fix my vpn, it stop connected few days ago. we are using a custom script we built under globalprotect
+720db9f9-3622-4290-9deb-24e3f444ffc4	Projects/Wix/glow/up	2026-05-14	2759	47	fetch the latest from the master
+a06c0bf5-3347-4e0d-99e7-72bbdc4655a5	Projects/Wix/glow/up	2026-05-14	48	3	בךשוגק
+41560a5d-25db-46c8-8141-46f2c669aa80	/	2026-05-14	351	7	How can I know what process is writing to the HDD? or SSD
+4f830d59-76de-43bc-8dd5-bdb8dfd4c8e6	/	2026-05-14	107	1	[Image #1] what are those process?
+8880a2bf-37fc-4703-beda-14a62c7c2842	/	2026-05-14	963	14	ase) ofirh@ofirh-Legion-7-16IRX9:/$ sudo fatrace -f W | grep -E 'oedggboaecbkcpnmkmdglidmfblggplg' chrome(6466): W /home/ofirh/.config/google-chrome/Default/Local Extension Settings/oedggboaecbkcpnmkmdglidmfblggplg/00001
+c2284b30-2432-4728-9ae5-d2857b38ff6c	/	2026-05-14	444	1	Slack app is not opening. fix it
+333aa58b-8c3d-4a2b-bc83-07a3e92cbb95	/home/ofirh	2026-05-14	128	1	# Daily Slack Behavior Review — Ofir Hadad Run this at 5pm every weekday. Follow all steps. ## Context - User: Ofir Hadad (ofirh@wix.com) - Slack user ID: U04NSRB6W15 - Manager: Lital Mor (litalm, U1V7PD9Q8) - Team: Book
+301db6e6-76ac-4214-9b9c-6a4d641ebe74	Projects/Wix/glow/up	2026-05-13	939	10	Read this PR changes:
+d477e3df-7d2d-42d1-9ac0-9a51fee9bfe3	Projects/Wix/glow/up	2026-05-13	1159	39	Here is a working part of code that use twillio to send sms https://github.com/wix-private/alfred/blob/86906dd574a11c811e81bbdb54c51d9f651560e1/packages/alfred-voice-service/src/services/nile-clients.ts#L180 it already t
+d6c38df4-5de2-430e-ba69-5ff4ef9c9ecc	Projects/Wix/glow/up	2026-05-13	2859	19	## Handoff — Harmony site publish bug ### One-line summary The glow-up V2 Harmony flow successfully writes the editor draft but the cloned site **is not owned by our booth account**, so the publish step silently does not
+a533a625-dade-4bf1-9767-6e9689705d0c	Projects/Wix/glow/up	2026-05-13	4715	32	In this project, When I paste a vagaro URL, and click continue. what happenes?
+f8ed78b1-a554-4366-af87-617401290fbe	Projects/Wix/glow/up	2026-05-13	3142	13	What part in this project is incharged of changing the text in the genereted site?
+690fed0b-3547-486d-a475-9aeb7bb10e5c	/home/ofirh	2026-05-13	131	1	# Daily Slack Behavior Review — Ofir Hadad Run this at 5pm every weekday. Follow all steps. ## Context - User: Ofir Hadad (ofirh@wix.com) - Slack user ID: U04NSRB6W15 - Manager: Lital Mor (litalm, U1V7PD9Q8) - Team: Book
+3970094a-f99a-45b5-8379-076ddd815ca1	Projects/Wix/glow/up	2026-05-12	907	7	When we scan a vagaro site (for example: https://mysite.vagaro.com/riiohairsalon or https://mysite.vagaro.com/riiohairsalon/services) we are scrapping the images as well, but it seems that when we are bulk createing serv
+6dc82c22-dbbd-438c-b2d1-11db90fdce39	Projects/Wix/glow/up	2026-05-12	1258	19	I run E2E, I will provide all the errors I see: [SERVER]: [wixHttp] wix apikey error Error: Wix API key 403 POST https://www.wixapis.com/accounts/v1/accounts/create requestId=1778583845.9281733466741336: {"message":"Perm
+8eb357e8-6779-48a1-9036-5127fb610580	Projects/Wix/glow/up	2026-05-12	210	2	when I the flow via https://bo.wix.com/glow-up, I get this error: browserType.launch: Chromium distribution 'chrome' is not found at /opt/google/chrome/chrome Run "npx playwright install chrome"
+c4719074-118e-454a-a5b6-b830e0c36b62	Projects/Wix/glow/up	2026-05-12	2229	11	ofear123.wixsite.com/desert-beauty-salo-2 aa800f96-c6e8-4d96-9dd8-36cfe6e4adf1 The services was not imported, why?
+cb3757c0-0597-47d6-af3a-1ba9b0dd81a8	Projects/Wix/glow/up	2026-05-12	132	2	Summerize all that we did yestaerday
+17f26c91-656c-4298-8052-d81af0f88924	Projects/Wix/glow/up	2026-05-12	60	1	Can you show the input bar in red when the context window is above 200k and yellow when it above 150K ?
+f5997106-0790-4686-9be1-fd89ac9dad0d	Projects/Wix/glow/up	2026-05-11	4506	34	# Handoff Brief — glow-up booth app, console-mirror-in-dev branch ## Repo orientation - **Path**: `/home/ofirh/Projects/Wix/glow-up/packages/glow-up/` - **Stack**: Yoshi (Wix) + Express + Playwright + React. TypeScript. 
+2807545a-b77c-46bb-876c-cc4b6fde4560	Projects/Wix/glow/up	2026-05-11	1939	4	In this page [Image #1] We have a view of 4 templates, Make the number of display configurable, currently when we have more then 4 it add a row or even multiple rows[Image #2] [Image #3] I want it to allow a slider left 
+f292eba4-6608-4a56-b7a2-08f2e5a37e1b	Projects/Wix/glow/up	2026-05-11	90	1	add this MCP "GITHUB": { "type": "http", "url": "https://mcp-s.wewix.net/mcp?mcp=github" },
+55333c80-da74-4954-98ae-694648f72ec0	Projects/Wix/glow/up	2026-05-11	56	1	add this MCP "WixInternalDocs": { "command": "npx", "args": [ "@wix/internal-docs-mcp" ], "env": {} },
+90bc6f29-a2d2-4c33-8ad4-4df43d1e8f14	Projects/Wix/glow/up	2026-05-11	340	1	[Image #4] Can you make the steps we are waiting to make the progress animated, it hard to know if it stuck or not, maybe make the progress bar a little bit bigger so we will be able to see the color changes, Also, Maybe
+ef0012e8-47ca-4f11-922c-72e49520b036	Projects/Wix/wix/vmr/repo	2026-05-11	971	14	https://wix.slack.com/archives/C04L2F143FW/p1778491417380499
+114e1b37-8e68-458c-8b94-e553dc4b730c	/home/ofirh	2026-05-11	124	1	# Daily Slack Behavior Review — Ofir Hadad Run this at 5pm every weekday. Follow all steps. ## Context - User: Ofir Hadad (ofirh@wix.com) - Slack user ID: U04NSRB6W15 - Manager: Lital Mor (litalm, U1V7PD9Q8) - Team: Book
+f627586c-4dd7-4e36-9d6c-f459c47eb7e3	Projects/Wix/glow/up	2026-05-10	5623	51	# Glow-Up Harmony Integration — Handoff Brief Copy this into a new chat to pick up exactly where we left off. --- ## Project context **Repo:** `/home/ofirh/Projects/Wix/glow-up` (Wix-internal POC) **Today's date:** 2026-
+f5309fce-733d-4b9d-a178-15673cbb1d62	Projects/Wix/glow/up	2026-05-10	5162	39	[SERVER]: [scan] scan completed { step: 'scan', url: 'https://www.vagaro.com/milanbeautysalonco', platform: 'vagaro', cms: 'vagaro', source_already_wix: false, duration_ms: 16874, usedBrowser: true, businessName: 'projec
+2813ae6a-8d6e-4d48-b42b-e56f249b3e1b	Projects/Wix/glow/up	2026-05-10	1016	15	Two Developers are joing me tomorrow, We need to create a md file that explain how this system works, what is the intent of this system, what is the status, what is the flow, E2E diagram, how to start it, etc...
+c54c9f50-89c5-4a13-aefe-ffa456f84bb8	Projects/Wix/glow/up	2026-05-10	9166	73	# Glow-Up Harmony Integration — Handoff Brief (continued) Copy this into a new chat. Picks up exactly where we left off. Builds on the previous brief at the top of this session. --- ## TL;DR of this session's outcome - *
+cb96b757-6602-447d-a1d5-56a1d1914cc4	Projects/chrome/memory/monitor	2026-05-10	563	4	gallery.html:1 The resource https://bo.wix.com/reset.css was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloa
+2e69826d-b4a8-4d38-ad71-36683cf59d48	Projects/Wix/glow/up	2026-05-07	203	2	If I had an AI Agent that get prompt from our system AFTER THE SCRAPPING and doing all the part of the Site generetion, How will the prompt look like?
+7bf4b078-5238-4e47-92d0-94dabb14c21d	Projects/Wix/glow/up	2026-05-07	4245	15	https://linear.app/wix-services/issue/WIX-9/scraping-13-platform-scrapers-mindbody-vagaro-square-boulevard-booksy Do we have real code for each platform?
+f12e1276-665e-4d09-b2bb-7945345a9422	Projects/Wix/glow/up	2026-05-07	4628	43	I need to create a Gantt to this project. let's think together what the Gantt will look like
+e4069332-38b5-42f2-b4fe-d442a83a21f7	Projects/Wix/glow/up	2026-05-07	5345	44	[Image #1] Wix Wix Disconnect Manage Reference memories and chats Allow ChatGPT to reference relevant chats and memories when sharing data with Wix for more helpful responses. Connected on May 7, 2026 Website Privacy Pol
+2de735a0-aa2a-41c1-be35-c017bea7518a	Projects/Wix/projectX	2026-05-06	2015	13	The deepdive mcp have only 17 tools available, I think we had much more. and some are not available I think
+cbb82a18-59ad-4c5c-8964-c4707ca3ddfd	Projects/Wix/glow/up	2026-05-06	918	8	[SERVER]: [wixHttp] wix apikey error Error: Wix API key 404 GET https://www.wixapis.com/site-media/v1/files/get-file-by-id?fileId=687711_8b8f50d8d8e64573a32e0a2dfd992cd9~mv2.png requestId=1778056297.245848451631308: {"me
+492540b6-e8b3-4afb-b31d-ad6444230e1c	Projects/Wix/glow/up	2026-05-06	77	1	Explain what we done here: https://github.com/wix-private/glow-up/pull/27
+8bf5355a-559e-4960-a6cc-6ea8806ccb54	Projects/Wix/glow/up	2026-05-05	6116	46	Ok, So per our design. what was our intent, what is the porpuse of this project, what we have? what we built, how? what we are doing currently, what we have left to do
