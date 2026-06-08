@@ -105,7 +105,9 @@ export async function listSessionFiles(): Promise<string[]> {
   const out: string[] = [];
   const excluded = new Set(config().excludeProjectDirs);
   for (const dir of await readdir(ROOT, { withFileTypes: true })) {
-    if (!dir.isDirectory() || excluded.has(dir.name)) continue;
+    // skip configured excludes + links' own claude-headless extraction sessions
+    // (run in a "links-ephemeral" temp cwd — the --ephemeral equivalent for claude)
+    if (!dir.isDirectory() || excluded.has(dir.name) || dir.name.includes("links-ephemeral")) continue;
     const dirPath = join(ROOT, dir.name);
     for (const f of await readdir(dirPath)) {
       if (f.endsWith(".jsonl")) out.push(join(dirPath, f));

@@ -131,6 +131,70 @@ function stripFences(s: string): string {
   return s.replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/, "");
 }
 
+// ---------- claude headless engine (for friends who have Claude Code, not codex) ----------
+const CLAUDE_TIMEOUT_MS = 10 * 60 * 1000;
+
+/** Run `claude -p` headless, return the assistant's text (the JSON envelope's `result`). */
+function runClaude(prompt: string, cwd: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const bin = process.env.CLAUDE_BIN || "claude";
+    const child = spawn(bin, ["-p", "--output-format", "json", "--model", process.env.LINKS_CLAUDE_MODEL || "haiku"], {
+      cwd,
+      stdio: ["pipe", "pipe", "pipe"],
+    });
+    let out = "", err = "";
+    const timer = setTimeout(() => { child.kill("SIGKILL"); reject(new Error(`claude timed out after ${CLAUDE_TIMEOUT_MS / 1000}s`)); }, CLAUDE_TIMEOUT_MS);
+    child.stdout.on("data", (d: Buffer) => (out += d.toString()));
+    child.stderr.on("data", (d: Buffer) => (err += d.toString().slice(0, 4000)));
+    child.on("error", (e) => { clearTimeout(timer); reject(e); });
+    child.on("close", (code) => {
+      clearTimeout(timer);
+      if (code !== 0) return reject(new Error(`claude exit ${code}: ${err.slice(-1500)}`));
+      try {
+        const env = JSON.parse(out) as { result?: string; is_error?: boolean };
+        if (env.is_error) return reject(new Error(`claude error: ${String(env.result ?? "").slice(0, 800)}`));
+        resolve(String(env.result ?? ""));
+      } catch {
+        reject(new Error(`claude output not JSON: ${out.slice(0, 400)}`));
+      }
+    });
+    child.stdin.write(prompt);
+    child.stdin.end();
+  });
+}
+
+export async function claudeJson(prompt: string, schemaPath: string): Promise<CardData> {
+  const schema = await readFile(schemaPath, "utf8");
+  // run in a sentinel-named temp cwd; the adapter skips project dirs containing
+  // "links-ephemeral", so claude's own extraction transcript never pollutes the
+  // corpus (the claude equivalent of codex's --ephemeral).
+  const work = await mkdtemp(join(tmpdir(), "links-ephemeral-"));
+  const full =
+    `${prompt}\n\nOUTPUT FORMAT: respond with ONLY a single JSON object conforming to this JSON Schema — ` +
+    `no markdown, no code fences, no prose before or after:\n${schema}`;
+  try {
+    let lastErr: unknown;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        return JSON.parse(stripFences((await runClaude(full, work)).trim())) as CardData;
+      } catch (e) {
+        lastErr = e;
+      }
+    }
+    throw lastErr;
+  } finally {
+    await rm(work, { recursive: true, force: true });
+  }
+}
+
+/** Dispatch extraction to the configured engine. codex (default) is --ephemeral-clean;
+ *  claude is for friends who have Claude Code but not codex. */
+async function extractJson(prompt: string, schemaPath: string): Promise<CardData> {
+  const { config } = await import("./config.js");
+  if (config().extractionEngine === "claude") return claudeJson(prompt, schemaPath);
+  return codexJson(prompt, schemaPath); // "codex" default; "api-key" reserved → codex
+}
+
 // ---------- transcript rendering ----------
 function renderMessage(m: NormalizedMessage): string {
   const parts: string[] = [];
@@ -254,20 +318,20 @@ export async function extractCard(
   log(`  ${chunks.length} chunk(s)`);
   let result: CardData;
   if (chunks.length === 1) {
-    result = await codexJson(extractionPrompt(meta, chunks[0]!), schemaPath);
+    result = await extractJson(extractionPrompt(meta, chunks[0]!), schemaPath);
   } else {
     const partials: CardData[] = [];
     for (let i = 0; i < chunks.length; i++) {
       log(`  chunk ${i + 1}/${chunks.length}`);
       partials.push(
-        await codexJson(
+        await extractJson(
           extractionPrompt(meta, chunks[i]!, `NOTE: chunk ${i + 1} of ${chunks.length} of a long session.\n`),
           schemaPath,
         ),
       );
     }
     log(`  merging ${partials.length} partials`);
-    result = await codexJson(mergePrompt(meta, partials), schemaPath);
+    result = await extractJson(mergePrompt(meta, partials), schemaPath);
   }
   const { data, violations } = clampEvidence(result, messages.length);
   if (violations) log(`  ⚠ clamped ${violations} out-of-range evidence pointer(s)`);
