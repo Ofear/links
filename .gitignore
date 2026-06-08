@@ -8,3 +8,4 @@ links.config.json
 benchmark/fixture/**/links.db
 benchmark/fixture/store/**/*.md
 dist/
+*.tgz

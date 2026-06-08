@@ -9,7 +9,7 @@
 // (default store ~/.links/store), and prints the MCP + hook registration using the
 // installed `links` commands. `serve <scope>` launches the MCP server for a scope.
 import { spawn } from "node:child_process";
-import { access, readFile, writeFile } from "node:fs/promises";
+import { access, mkdir, readFile, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
@@ -158,13 +158,15 @@ async function init(argv) {
   const engine = hasCodexBin ? "codex" : hasClaudeBin ? "claude" : "codex";
   console.log(`extraction engine: ${engine}` + (hasCodexBin || hasClaudeBin ? "" : "  ⚠ neither codex nor claude CLI found — install one to extract cards"));
 
-  // Write links.config.json next to the install (only if absent — never clobber).
-  const configPath = join(root, "links.config.json");
+  // Write config to ~/.links/config.json — survives package updates, found regardless
+  // of CWD (only if absent — never clobber). Override location with LINKS_CONFIG.
+  const configPath = process.env.LINKS_CONFIG || join(home, ".links", "config.json");
+  await mkdir(dirname(configPath), { recursive: true });
   if (await exists(configPath)) {
-    console.log(`\nlinks.config.json already exists — keeping it (delete to re-generate).`);
+    console.log(`\n${configPath} already exists — keeping it (delete to re-generate).`);
   } else {
     const cfg = {
-      $schema: "./schema/links.config.schema.json",
+      $schema: join(root, "schema", "links.config.schema.json"),
       $comment:
         "links config — scopes are cwd-prefix rules (first match wins, last is fallback). " +
         "Omitted fields fall back to built-in defaults. Paths support leading ~.",

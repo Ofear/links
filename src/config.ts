@@ -74,12 +74,12 @@ export interface LinksConfig {
  * Keep this object and schema/links.config.schema.json in lockstep.
  */
 const DEFAULTS: LinksConfig = {
-  scopes: [
-    { name: "wix", cwdPrefix: "~/Projects/Wix" },
-    { name: "personal", cwdPrefix: "~" }, // fallback
-  ],
-  excludeProjectDirs: ["-home-ofirh--claude-mem-observer-sessions"],
-  storeDir: "~/Projects/Personal/links/store",
+  // Generic defaults — anyone gets a single "personal" scope. Per-machine scopes
+  // (e.g. a "wix" work scope) and machine-specific excludes go in the user's
+  // ~/.links/config.json, NOT here — shipping them would leak to every install.
+  scopes: [{ name: "personal", cwdPrefix: "~" }],
+  excludeProjectDirs: [],
+  storeDir: "~/.links/store",
   sources: {
     claudeProjects: "~/.claude/projects",
     codexSessions: "~/.codex/sessions",
@@ -99,8 +99,10 @@ const DEFAULTS: LinksConfig = {
 
 export const ROOT = join(import.meta.dirname, "..");
 
-/** Default store dir resolves relative to the repo, not a hardcoded home path. */
-const REPO_STORE_DEFAULT = join(ROOT, "store");
+/** User config location — lives in the user's home so it survives package updates
+ *  and is found regardless of CWD or where the package is installed. Override with
+ *  LINKS_CONFIG. (Must NOT be the package dir — that's wiped on reinstall.) */
+const CONFIG_PATH = process.env.LINKS_CONFIG || join(homedir(), ".links", "config.json");
 
 let cached: LinksConfig | undefined;
 
@@ -113,16 +115,14 @@ export function config(): LinksConfig {
   if (cached) return cached;
   let user: Partial<LinksConfig> = {};
   try {
-    user = JSON.parse(readFileSync(join(ROOT, "links.config.json"), "utf8")) as Partial<LinksConfig>;
+    user = JSON.parse(readFileSync(CONFIG_PATH, "utf8")) as Partial<LinksConfig>;
   } catch {
     user = {};
   }
   cached = {
     ...DEFAULTS,
     ...user,
-    // storeDir default is repo-relative (not the literal home path baked above)
-    // unless the user pins one explicitly.
-    storeDir: user.storeDir ?? REPO_STORE_DEFAULT,
+    storeDir: user.storeDir ?? DEFAULTS.storeDir,
     sources: { ...DEFAULTS.sources, ...user.sources },
     codexFallback: { ...DEFAULTS.codexFallback, ...user.codexFallback },
     gate: { ...DEFAULTS.gate, ...user.gate },
@@ -147,7 +147,7 @@ export function setConfigForTest(c: PartialConfig): void {
   cached = {
     ...DEFAULTS,
     ...c,
-    storeDir: c.storeDir ?? REPO_STORE_DEFAULT,
+    storeDir: c.storeDir ?? DEFAULTS.storeDir,
     sources: { ...DEFAULTS.sources, ...c.sources },
     codexFallback: { ...DEFAULTS.codexFallback, ...c.codexFallback },
     gate: { ...DEFAULTS.gate, ...c.gate },

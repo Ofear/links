@@ -22,10 +22,10 @@ function check(name: string, cond: boolean, detail?: string) {
   }
 }
 
-// ---- defaults reproduce this machine ----
+// ---- defaults are GENERIC (no machine-specific values shipped) ----
 const d = defaults();
-check("default scopes: wix then personal-fallback", d.scopes[0]?.name === "wix" && d.scopes.at(-1)?.name === "personal");
-check("default excludes the observer dir", d.excludeProjectDirs.includes("-home-ofirh--claude-mem-observer-sessions"));
+check("default scopes: single generic personal", d.scopes.length === 1 && d.scopes[0]?.name === "personal");
+check("default excludes are empty (machine-specific excludes live in ~/.links/config.json)", d.excludeProjectDirs.length === 0);
 check("default extraction engine is codex", d.extractionEngine === "codex");
 check("default codexFallback targets the cursor extension", d.codexFallback.extensionPrefix === "openai.chatgpt-");
 check("default gate.minSizeKb=10", d.gate.minSizeKb === 10);
@@ -35,14 +35,11 @@ check("expandHome resolves ~", expandHome("~/x") === join(homedir(), "x"));
 check("expandHome leaves absolute paths", expandHome("/etc/x") === "/etc/x");
 
 // ---- pure defaults (no file injected) ----
-// setConfigForTest({}) gives DEFAULTS with a repo-relative storeDir.
 setConfigForTest({});
-check("storeDir default is repo-relative, not a baked home path", !storeDir().includes("/Projects/Personal/links/store") || storeDir().endsWith("/store"));
-check("storeDir resolves under the repo", storeDir().endsWith("/store"));
-check("scopeNames from defaults", JSON.stringify(scopeNames()) === JSON.stringify(["wix", "personal"]));
-check("scopeForCwd wix prefix", scopeForCwd(join(homedir(), "Projects/Wix/foo")) === "wix");
-check("scopeForCwd fallback to personal", scopeForCwd(join(homedir(), "Projects/Personal/x")) === "personal");
-check("scopeForCwd empty cwd → fallback", scopeForCwd("") === "personal");
+check("storeDir default is ~/.links/store (user home, not package dir)", storeDir() === join(homedir(), ".links/store"));
+check("scopeNames from defaults", JSON.stringify(scopeNames()) === JSON.stringify(["personal"]));
+check("scopeForCwd any path → personal (only scope)", scopeForCwd(join(homedir(), "Projects/Wix/foo")) === "personal");
+check("scopeForCwd empty cwd → personal", scopeForCwd("") === "personal");
 
 // ---- override merges (deep-merge nested objects, replace top-level arrays) ----
 setConfigForTest({
