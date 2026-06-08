@@ -9,6 +9,7 @@
   "engines": { "node": ">=20.11" },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
+    "prepare": "npm run build",
     "ingest": "tsx src/cli.ts ingest",
     "init": "node bin/links.js init",
     "test": "tsx src/scanner.test.ts && tsx src/config.test.ts && tsx src/retrieval.test.ts",

@@ -25,6 +25,14 @@ const useDist = existsSync(distCli);
 const exists = (p) => access(p).then(() => true, () => false);
 const expandHome = (p) => (p.startsWith("~") ? join(homedir(), p.slice(1)) : p);
 
+/** Is a command on PATH and runnable? (used to pick an extraction engine). */
+const hasBin = (name) =>
+  new Promise((r) => {
+    const c = spawn(name, ["--version"], { stdio: "ignore" });
+    c.on("error", () => r(false));
+    c.on("close", (code) => r(code === 0));
+  });
+
 /** Run a tool entrypoint: compiled JS via node, or src TS via tsx in dev. */
 function run(distPath, srcRel, args) {
   const [bin, pre] = useDist ? [process.execPath, [distPath]] : [tsx, [join(root, "src", srcRel)]];
@@ -65,6 +73,71 @@ async function loadDefaults() {
   });
 }
 
+/** Read JSON (or {} if absent), let mutate() change it, back up once, write back. */
+async function editJson(path, mutate) {
+  let obj = {};
+  let existed = false;
+  try {
+    obj = JSON.parse(await readFile(path, "utf8"));
+    existed = true;
+  } catch {
+    /* new file */
+  }
+  const changed = mutate(obj);
+  if (!changed) return false;
+  if (existed && !(await exists(path + ".bak"))) {
+    await writeFile(path + ".bak", JSON.stringify(obj, null, 2)); // one-time safety backup
+  }
+  await writeFile(path, JSON.stringify(obj, null, 2) + "\n");
+  return true;
+}
+
+/** Actually wire Claude Code: add MCP servers (~/.claude.json) + hooks (settings.json). */
+async function applyClaude(home, scopes) {
+  const claudeJson = join(home, ".claude.json");
+  const settings = join(home, ".claude", "settings.json");
+
+  const mcpChanged = await editJson(claudeJson, (j) => {
+    j.mcpServers ??= {};
+    let added = 0;
+    for (const scope of scopes) {
+      const name = `links-${scope}`;
+      if (!j.mcpServers[name]) {
+        j.mcpServers[name] = { command: "links", args: ["serve", scope] };
+        added++;
+      }
+    }
+    if (added) console.log(`  ✓ added ${added} MCP server(s) to ~/.claude.json`);
+    return added > 0;
+  });
+  if (!mcpChanged) console.log(`  · MCP servers already present in ~/.claude.json`);
+
+  const hooksChanged = await editJson(settings, (j) => {
+    j.hooks ??= {};
+    let changed = false;
+    const has = (event, needle) =>
+      (j.hooks[event] ?? []).some((g) =>
+        (g.hooks ?? []).some((h) => typeof h.command === "string" && h.command.includes(needle)),
+      );
+    if (!has("SessionStart", "links inject") && !has("SessionStart", "cli.ts inject")) {
+      (j.hooks.SessionStart ??= []).push({
+        hooks: [{ type: "command", command: 'links inject "${CLAUDE_PROJECT_DIR:-$PWD}" 2>/dev/null || true', statusMessage: "links: recalling past sessions" }],
+      });
+      changed = true;
+    }
+    if (!has("SessionEnd", "links refresh") && !has("SessionEnd", "cli.ts refresh")) {
+      (j.hooks.SessionEnd ??= []).push({
+        hooks: [{ type: "command", command: "links refresh >/dev/null 2>&1 || true", statusMessage: "links: memorizing this session" }],
+      });
+      changed = true;
+    }
+    if (changed) console.log(`  ✓ added SessionStart/SessionEnd hooks to settings.json`);
+    return changed;
+  });
+  if (!hooksChanged) console.log(`  · hooks already present in settings.json`);
+  console.log(`  (backups written as *.bak on first change; restart Claude Code to load)`);
+}
+
 async function init(argv) {
   const apply = argv.includes("--apply");
   const home = homedir();
@@ -77,6 +150,13 @@ async function init(argv) {
     console.error("no supported session stores found (~/.claude/projects, ~/.codex/sessions) — nothing to index");
     process.exit(1);
   }
+
+  // Pick an extraction engine by what's actually installed: codex (preferred,
+  // --ephemeral-clean) → claude headless → codex default (errors later if neither).
+  const hasCodexBin = await hasBin("codex");
+  const hasClaudeBin = await hasBin("claude");
+  const engine = hasCodexBin ? "codex" : hasClaudeBin ? "claude" : "codex";
+  console.log(`extraction engine: ${engine}` + (hasCodexBin || hasClaudeBin ? "" : "  ⚠ neither codex nor claude CLI found — install one to extract cards"));
 
   // Write links.config.json next to the install (only if absent — never clobber).
   const configPath = join(root, "links.config.json");
@@ -91,7 +171,7 @@ async function init(argv) {
       scopes: [{ name: "personal", cwdPrefix: "~" }],
       excludeProjectDirs: [],
       storeDir: "~/.links/store",
-      extractionEngine: "codex",
+      extractionEngine: engine,
       gate: { minSizeKb: 10, maxJunkUserTurns: 2 },
     };
     await writeFile(configPath, JSON.stringify(cfg, null, 2) + "\n");
@@ -109,30 +189,25 @@ async function init(argv) {
     /* defaults stand */
   }
 
-  console.log(
-    apply
-      ? "\n--apply is reserved and not implemented yet; printing the registration instead.\n"
-      : "\nDRY RUN — run these yourself. links does not edit other tools' configs without you.\n",
-  );
   console.log(`store dir: ${storeDir}`);
 
+  if (apply && hasClaude) {
+    console.log(`\nAPPLYING Claude Code wiring (idempotent; *.bak backups on first change):`);
+    await applyClaude(home, scopes);
+  } else if (hasClaude) {
+    console.log(`\nDRY RUN — re-run \`links init --apply\` to wire Claude Code automatically, or do it yourself:`);
+    for (const scope of scopes) console.log(`claude mcp add --scope user links-${scope} -- links serve ${scope}`);
+    console.log(`# hooks (~/.claude/settings.json): SessionStart → links inject "\${CLAUDE_PROJECT_DIR:-$PWD}" ; SessionEnd → links refresh`);
+  }
+
+  // codex/cursor are always printed — --apply automates Claude Code only for now.
   for (const scope of scopes) {
-    console.log(`\n# ── MCP server for scope "${scope}" ──`);
-    if (hasClaude) console.log(`claude mcp add --scope user links-${scope} -- links serve ${scope}`);
     if (hasCodex)
-      console.log(
-        `# codex — add to ~/.codex/config.toml:\n` +
-          `[mcp_servers.links-${scope}]\ncommand = "links"\nargs = ["serve", "${scope}"]`,
-      );
+      console.log(`\n# codex — add to ~/.codex/config.toml:\n[mcp_servers.links-${scope}]\ncommand = "links"\nargs = ["serve", "${scope}"]`);
     if (hasCursor)
       console.log(`# cursor — add to ~/.cursor/mcp.json: "links-${scope}": { "command": "links", "args": ["serve", "${scope}"] }`);
   }
 
-  if (hasClaude) {
-    console.log(`\n# ── Claude Code hooks (~/.claude/settings.json) ──`);
-    console.log(`# SessionStart → links inject "\${CLAUDE_PROJECT_DIR:-$PWD}"`);
-    console.log(`# SessionEnd   → links refresh   (run async)`);
-  }
   console.log(`\n# ── Then build the index + cards ──`);
   console.log(`links ingest && links extract --all && links refresh`);
 }
