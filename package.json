@@ -5,11 +5,15 @@
   "type": "module",
   "description": "Cross-tool linked-data session memory — agents reuse past work instead of re-investigating",
   "bin": { "links": "./bin/links.js" },
+  "files": ["dist", "bin", "schema"],
+  "engines": { "node": ">=20.11" },
   "scripts": {
+    "build": "tsc -p tsconfig.build.json",
     "ingest": "tsx src/cli.ts ingest",
     "init": "node bin/links.js init",
     "test": "tsx src/scanner.test.ts && tsx src/config.test.ts && tsx src/retrieval.test.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm run build"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.13",

@@ -16,13 +16,14 @@ import { getSessionRow, hybridSearch } from "./db.js";
 import { redact } from "./scanner.js";
 import { validateCard, freshnessBadge, type FreshnessVerdict } from "./validate.js";
 
-const { scopeNames } = await import("./config.js");
+const { scopeNames, storeDir } = await import("./config.js");
 const scope = process.argv[2] ?? "";
 if (!scopeNames().includes(scope)) {
-  console.error(`usage: tsx src/server.ts <${scopeNames().join("|")}>`);
+  console.error(`usage: links serve <${scopeNames().join("|")}>`);
   process.exit(1);
 }
-const SCOPE_DIR = join(import.meta.dirname, "..", "store", scope);
+// config-driven store (a friend's ~/.links/store), NOT the package install dir
+const SCOPE_DIR = join(storeDir(), scope);
 
 function indexLine(r: {
   card_id: string; date: string; project: string; outcome: string; intent: string; size_kb: number; has_card: number;
