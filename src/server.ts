@@ -41,6 +41,10 @@ server.registerTool(
       "similarity, so PARAPHRASE queries match too (e.g. 'speed up the build' finds 'reduce " +
       "webpack compile time'). Returns compact index lines (~30 tokens each), each annotated " +
       "with WHY it matched (lexical / semantic / both). " +
+      "Results are FRESHNESS-RANKED: each hit is validated against the CURRENT code (the files " +
+      "it touched, vs git history) and memory that no longer matches reality sinks — a hit " +
+      "tagged [⚠ stale] means the files changed since, [⛔ code moved] means cited code is gone " +
+      "(verify before trusting implementation details; decisions/rationale still hold). " +
       "ALWAYS start here before re-investigating anything that may have been solved before. " +
       "Then call get_card on promising hits — NEVER read_session without get_card first. " +
       `NOTE: this server covers the '${scope}' scope only; machine/system-level fixes (VPN, ` +
@@ -51,14 +55,24 @@ server.registerTool(
     },
   },
   async ({ query, limit }) => {
-    const rows = hybridSearch(SCOPE_DIR, query, limit);
-    // flag stale/broken hits inline so a bad match is visible before spending a get_card
-    const suffixes = await Promise.all(rows.map((r) => cardVerdict(r.card_id).then(freshnessSuffix)));
+    // over-fetch, then re-rank by FRESHNESS: stale/broken memory sinks below
+    // still-true memory. links ranks by "is it still true?" — not just similarity.
+    const pool = hybridSearch(SCOPE_DIR, query, Math.min(limit * 3, 30));
+    const judged = await Promise.all(
+      pool.map(async (r) => {
+        const v = await cardVerdict(r.card_id);
+        return { r, v, adj: r.score * freshnessFactor(v) };
+      }),
+    );
+    judged.sort((a, b) => b.adj - a.adj);
+    const top = judged.slice(0, limit);
     return {
       content: [{
         type: "text",
-        text: rows.length
-          ? rows.map((r, i) => `${indexLine(r)}${suffixes[i]}\n    ↳ matched via ${r.why} · score ${r.score.toFixed(2)}`).join("\n")
+        text: top.length
+          ? top
+              .map(({ r, v, adj }) => `${indexLine(r)}${freshnessSuffix(v)}\n    ↳ matched via ${r.why} · score ${adj.toFixed(2)} (freshness-ranked)`)
+              .join("\n")
           : "No matching past sessions. This appears to be new ground — proceed with fresh investigation.",
       }],
     };
@@ -158,6 +172,21 @@ function freshnessSuffix(v: FreshnessVerdict | null): string {
   return v?.freshness === "stale" ? "  [⚠ stale]"
     : v?.freshness === "broken" ? "  [⛔ code moved]"
     : "";
+}
+
+/**
+ * Truth-aware ranking multiplier. links ranks by "is this memory still true
+ * against the current code?", not just similarity+recency — the axis competitors
+ * (total-recall, claude-mem, mem0) are structurally blind to. A card whose code
+ * is gone sinks below a slightly-less-similar card that still holds.
+ */
+function freshnessFactor(v: FreshnessVerdict | null): number {
+  switch (v?.freshness) {
+    case "broken": return 0.4; // cited code is gone — demote hard, but keep visible
+    case "stale": return 0.85; // file moved since the card — mild demote
+    case "fresh": return 1.05; // verified still-true — slight boost
+    default: return 1.0; // unknown / no signal — neutral
+  }
 }
 
 server.registerTool(
