@@ -86,10 +86,10 @@ export async function rebuildScope(scopeDir: string): Promise<{ sessions: number
   } catch {
     embedder = undefined; // no embeddings available → FTS5-only index, still works
   }
-  const indexVector = (cardId: string, text: string) => {
+  const indexVector = async (cardId: string, text: string) => {
     if (!embedder) return;
     try {
-      insVec.run({ card_id: cardId, embedder_id: embedder.id, vec: vectorToBlob(embedder.embed(text)) });
+      insVec.run({ card_id: cardId, embedder_id: embedder.id, vec: vectorToBlob(await embedder.embed(text)) });
     } catch {
       /* one bad embed must not abort the whole rebuild */
     }
@@ -138,14 +138,14 @@ export async function rebuildScope(scopeDir: string): Promise<{ sessions: number
         rules: flat(card.rules),
       };
       insSearch.run(fields);
-      indexVector(cardId, embedText(fields));
+      await indexVector(cardId, embedText(fields));
     } else {
       const fields = {
         card_id: cardId, project: meta.project, intent: meta.title, title: meta.title,
         entities: meta.toolsUsed.join(" "), summary: "", decisions: "", issues: "", rules: "",
       };
       insSearch.run(fields);
-      indexVector(cardId, embedText(fields));
+      await indexVector(cardId, embedText(fields));
     }
   }
   db.close();
@@ -228,12 +228,12 @@ export interface HybridRow extends IndexRow {
  * absent and fusion runs lexical-only — identical ranking to the old FTS5 path.
  * The tool never stops working because embeddings are missing.
  */
-export function hybridSearch(
+export async function hybridSearch(
   scopeDir: string,
   query: string,
   limit = 10,
   embedder: Embedder | undefined = defaultEmbedderOrNull(),
-): HybridRow[] {
+): Promise<HybridRow[]> {
   const db = openDb(scopeDir);
   try {
     const pool = Math.max(limit * 4, 25); // re-rank room
@@ -252,22 +252,29 @@ export function hybridSearch(
       for (const r of lex) cands.set(r.card_id, { cardId: r.card_id, bm25: r.bm25 });
     }
 
-    // 2. semantic (skipped silently if no embedder or no stored vectors)
+    // 2. semantic (skipped silently if no embedder or no stored vectors).
+    // A model-backed embedder can fail to load (e.g. minilm selected but the
+    // optional @huggingface/transformers dep isn't installed) — degrade to
+    // lexical-only rather than crash the whole search.
     if (embedder) {
       const rows = db.prepare(`SELECT card_id, vec FROM vectors WHERE embedder_id = ?`).all(embedder.id) as {
         card_id: string;
         vec: Buffer;
       }[];
       if (rows.length) {
-        const q = embedder.embed(query);
-        const sims = rows
-          .map((r) => ({ cardId: r.card_id, sim: cosine(q, blobToVector(r.vec)) }))
-          .sort((a, b) => b.sim - a.sim)
-          .slice(0, pool);
-        for (const s of sims) {
-          const existing = cands.get(s.cardId);
-          if (existing) existing.vectorSim = s.sim;
-          else cands.set(s.cardId, { cardId: s.cardId, vectorSim: s.sim });
+        try {
+          const q = await embedder.embed(query);
+          const sims = rows
+            .map((r) => ({ cardId: r.card_id, sim: cosine(q, blobToVector(r.vec)) }))
+            .sort((a, b) => b.sim - a.sim)
+            .slice(0, pool);
+          for (const s of sims) {
+            const existing = cands.get(s.cardId);
+            if (existing) existing.vectorSim = s.sim;
+            else cands.set(s.cardId, { cardId: s.cardId, vectorSim: s.sim });
+          }
+        } catch {
+          /* embed failed (model unavailable) → lexical-only, never crash */
         }
       }
     }

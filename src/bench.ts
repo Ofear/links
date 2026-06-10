@@ -112,12 +112,15 @@ function makeStore(scopeDirs: { scope: string; dir: string }[], lexicalOnly = fa
   // hybrid (FTS5 + vector fusion) is the real serving path; --lexical pins the old
   // FTS5-only path so we can measure whether hybrid actually lifts retrieval.
   const search = lexicalOnly ? searchIndex : hybridSearch;
-  function searchAll(query: string): Hit[] {
-    const hits = scopeDirs.flatMap(({ scope, dir }) =>
-      search(dir, query, TOP_K).map((h) => ({ ...h, scope })),
+  async function searchAll(query: string): Promise<Hit[]> {
+    // searchIndex is sync, hybridSearch is async — await handles both uniformly
+    const perScope = await Promise.all(
+      scopeDirs.map(async ({ scope, dir }) =>
+        (await search(dir, query, TOP_K)).map((h) => ({ ...h, scope })),
+      ),
     );
     // interleave so neither scope monopolizes the budget; cap at the funnel width
-    return hits.slice(0, TOP_K * scopeDirs.length);
+    return perScope.flat().slice(0, TOP_K * scopeDirs.length);
   }
   async function loadCard(scope: string, id: string): Promise<string | null> {
     const dir = scopeDirs.find((s) => s.scope === scope)?.dir;
@@ -135,9 +138,9 @@ async function scoreQuestion(
   contaminated: string[],
   useJudge: boolean,
 ): Promise<QResult> {
-  const hits = store
-    .searchAll(q.question)
-    .filter((h) => !contaminated.some((c) => h.session_id.startsWith(c)));
+  const hits = (await store.searchAll(q.question)).filter(
+    (h) => !contaminated.some((c) => h.session_id.startsWith(c)),
+  );
 
   // rank of first ground-truth card among carded hits (recall@k input)
   let gtRank = 0;
@@ -272,7 +275,7 @@ async function main(argv: string[]) {
   const fixture = argv.includes("--fixture");
   const useJudge = !argv.includes("--no-judge");
   const lexicalOnly = argv.includes("--lexical"); // pin FTS5-only path for A/B vs hybrid
-  const setFilter = argv.find((a) => ["tuning", "heldout", "negative"].includes(a));
+  const setFilter = argv.find((a) => ["tuning", "heldout", "negative", "paraphrase"].includes(a));
 
   const specPath = fixture
     ? join(ROOT, "benchmark", "fixture", "questions.json")

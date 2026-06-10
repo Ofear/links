@@ -5,7 +5,6 @@ import {
   cosine,
   type Candidate,
   DEFAULT_WEIGHTS,
-  defaultEmbedder,
   fuse,
   HashEmbedder,
   vectorToBlob,
@@ -21,22 +20,31 @@ function check(name: string, cond: boolean, detail = "") {
 }
 
 // ---------- embedder ----------
-const emb = defaultEmbedder();
-check("embedder vectors are L2-normalized", (() => {
-  const v = emb.embed("reduce webpack compile time");
+// Pin the HashEmbedder directly: deterministic + offline, independent of which
+// embedder this machine's config selects (minilm would need a model download).
+const emb = new HashEmbedder();
+{
+  const v = await emb.embed("reduce webpack compile time");
   let s = 0;
   for (const x of v) s += x * x;
-  return Math.abs(s - 1) < 1e-5;
-})());
+  check("embedder vectors are L2-normalized", Math.abs(s - 1) < 1e-5);
+}
 
-check("identical text → cosine ≈ 1", Math.abs(cosine(emb.embed("npm authToken 401"), emb.embed("npm authToken 401")) - 1) < 1e-6);
+{
+  const a = await emb.embed("npm authToken 401");
+  check("identical text → cosine ≈ 1", Math.abs(cosine(a, a) - 1) < 1e-6);
+}
 
-check("empty text → zero vector → cosine 0 (no crash)", cosine(emb.embed(""), emb.embed("anything")) === 0);
+{
+  const z = await emb.embed("");
+  const x = await emb.embed("anything");
+  check("empty text → zero vector → cosine 0 (no crash)", cosine(z, x) === 0);
+}
 
 // paraphrase / shared-root: more similar than unrelated text
-const base = emb.embed("speed up the slow build compilation");
-const para = emb.embed("the compile build is slow, make compilation faster");
-const unrel = emb.embed("redact phone numbers from transcripts");
+const base = await emb.embed("speed up the slow build compilation");
+const para = await emb.embed("the compile build is slow, make compilation faster");
+const unrel = await emb.embed("redact phone numbers from transcripts");
 check(
   "paraphrase scores higher than unrelated",
   cosine(base, para) > cosine(base, unrel),
@@ -44,11 +52,11 @@ check(
 );
 
 // blob round-trip
-check("vector survives blob round-trip", (() => {
-  const v = emb.embed("round trip test");
+{
+  const v = await emb.embed("round trip test");
   const back = blobToVector(vectorToBlob(v));
-  return back.length === v.length && Math.abs(cosine(v, back) - 1) < 1e-6;
-})());
+  check("vector survives blob round-trip", back.length === v.length && Math.abs(cosine(v, back) - 1) < 1e-6);
+}
 
 // ---------- fusion ranking ----------
 
@@ -133,6 +141,6 @@ check("vector survives blob round-trip", (() => {
 check("empty candidates → empty result", fuse([], DEFAULT_WEIGHTS, 10).length === 0);
 
 // 7. Custom embedder dim is honored (seam works).
-check("HashEmbedder honors custom dim", new HashEmbedder(64).dim === 64 && new HashEmbedder(64).embed("x").length === 64);
+check("HashEmbedder honors custom dim", new HashEmbedder(64).dim === 64 && (await new HashEmbedder(64).embed("x")).length === 64);
 
 process.exit(failed ? 1 : 0);

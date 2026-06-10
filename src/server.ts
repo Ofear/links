@@ -58,7 +58,7 @@ server.registerTool(
   async ({ query, limit }) => {
     // over-fetch, then re-rank by FRESHNESS: stale/broken memory sinks below
     // still-true memory. links ranks by "is it still true?" — not just similarity.
-    const pool = hybridSearch(SCOPE_DIR, query, Math.min(limit * 3, 30));
+    const pool = await hybridSearch(SCOPE_DIR, query, Math.min(limit * 3, 30));
     const judged = await Promise.all(
       pool.map(async (r) => {
         const v = await cardVerdict(r.card_id);

@@ -23,13 +23,19 @@
  * a non-issue — the vector *signal* is the point.
  */
 
+import { homedir } from "node:os";
+import { join } from "node:path";
+import { config } from "./config.js";
+
 // ---------- embedder seam ----------
 
 export interface Embedder {
   /** Stable id stamped alongside stored vectors so a model change forces a rebuild. */
   readonly id: string;
   readonly dim: number;
-  embed(text: string): Float32Array;
+  /** Async so a model-backed embedder (onnxruntime) fits the same seam as the
+   *  synchronous hash one — callers await regardless of which is configured. */
+  embed(text: string): Promise<Float32Array>;
 }
 
 const DEFAULT_DIM = 256;
@@ -48,7 +54,7 @@ export class HashEmbedder implements Embedder {
     this.dim = dim;
     this.id = `hash-ngram-v1-d${dim}`;
   }
-  embed(text: string): Float32Array {
+  async embed(text: string): Promise<Float32Array> {
     const v = new Float32Array(this.dim);
     const norm = text.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
     if (!norm) return v;
@@ -70,9 +76,51 @@ export class HashEmbedder implements Embedder {
   }
 }
 
+/**
+ * Real sentence-model embedder: all-MiniLM-L6-v2 (384-d) via Transformers.js,
+ * fully local + keyless. The model (~25 MB) downloads once to ~/.links/models on
+ * first use, then runs offline. The heavy onnxruntime dependency is loaded via a
+ * LAZY dynamic import, so a hash-only install never pays for it. Output is
+ * mean-pooled + L2-normalized to match cosine() / the HashEmbedder contract.
+ */
+export class MiniLMEmbedder implements Embedder {
+  readonly id = "minilm-l6-v2-d384";
+  readonly dim = 384;
+  private extractor: ((text: string, opts: object) => Promise<{ data: ArrayLike<number> }>) | undefined;
+  private ready: Promise<void> | undefined;
+  private async load(): Promise<void> {
+    let mod: typeof import("@huggingface/transformers");
+    try {
+      mod = await import("@huggingface/transformers");
+    } catch {
+      throw new Error(
+        'embedder "minilm" needs the optional dependency — run `npm install @huggingface/transformers` (or set "embedder":"hash" in ~/.links/config.json).',
+      );
+    }
+    mod.env.cacheDir = join(homedir(), ".links", "models"); // keep the model inside the tool's own dir
+    // q8-quantized weights: ~23MB vs ~87MB fp32, negligible recall loss for retrieval.
+    this.extractor = (await mod.pipeline("feature-extraction", "Xenova/all-MiniLM-L6-v2", { dtype: "q8" })) as never;
+  }
+  async embed(text: string): Promise<Float32Array> {
+    const norm = text?.trim();
+    if (!norm) return new Float32Array(this.dim); // empty → zero vec (cosine 0), matches HashEmbedder
+    this.ready ??= this.load();
+    await this.ready;
+    const out = await this.extractor!(norm, { pooling: "mean", normalize: true });
+    return new Float32Array(out.data); // copy out of the tensor view; already L2-normalized
+  }
+}
+
 let _default: Embedder | undefined;
 export function defaultEmbedder(): Embedder {
-  return (_default ??= new HashEmbedder());
+  if (_default) return _default;
+  _default = config().embedder === "minilm" ? new MiniLMEmbedder() : new HashEmbedder();
+  return _default;
+}
+
+/** Test/CLI seam: drop the cached default so a config change takes effect. */
+export function resetEmbedderCache(): void {
+  _default = undefined;
 }
 
 // ---------- vector math ----------
