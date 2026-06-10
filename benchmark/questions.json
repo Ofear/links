@@ -1,31 +1,252 @@
 {
   "comment": "Machine-readable mirror of benchmark.md. ground_truth = session-id prefixes. Sessions in 'contaminated' are excluded from scoring (they contain these questions verbatim).",
-  "contaminated": ["51d5fe29"],
+  "contaminated": [
+    "51d5fe29"
+  ],
   "questions": [
-    { "id": "T1", "set": "tuning", "question": "How did we fix the wix-deepdive MCP -32000 connection error? What was the root cause?", "ground_truth": ["520b8330"] },
-    { "id": "T2", "set": "tuning", "question": "What happens end-to-end when a Vagaro URL is pasted into glow-up and Continue is clicked?", "ground_truth": ["a533a625"] },
-    { "id": "T3", "set": "tuning", "question": "Why were services not imported for a generated glow-up site (desert-beauty-salo-2 case)?", "ground_truth": ["c4719074"] },
-    { "id": "T4", "set": "tuning", "question": "What was the Harmony site-publish bug — draft written but cloned site not published — and where did we leave it?", "ground_truth": ["d6c38df4", "f627586c", "c54c9f50"] },
-    { "id": "T5", "set": "tuning", "question": "Where is the reference code for sending SMS via Twilio that we used?", "ground_truth": ["d477e3df"] },
-    { "id": "T6", "set": "tuning", "question": "How did we fix the GlobalProtect VPN that stopped connecting (custom script)?", "ground_truth": ["9cea4cb0", "95780f7f"] },
-    { "id": "T7", "set": "tuning", "question": "Can the roundtable MCP be converted to a skill? What did we conclude and how?", "ground_truth": ["7f3c98e1", "cb4b1006"] },
-    { "id": "T8", "set": "tuning", "question": "Why did the old API allow 52 but the new one limits to 12 (bookings)?", "ground_truth": ["e3f1b2ee"] },
-    { "id": "T9", "set": "tuning", "question": "How did we identify which process was writing to the HDD/SSD?", "ground_truth": ["41560a5d", "8880a2bf"] },
-    { "id": "T10", "set": "tuning", "question": "What part of glow-up changes the text in the generated site?", "ground_truth": ["f8ed78b1"] },
-    { "id": "H1", "set": "heldout", "question": "Why did Cursor still open the old version after installing via App Center, and what fixed it?", "ground_truth": ["ae9db516"] },
-    { "id": "H2", "set": "heldout", "question": "How does the glow-up E2E flow work, step by step?", "ground_truth": ["0916f8f8"] },
-    { "id": "H3", "set": "heldout", "question": "What did we find when investigating the failed order creation (deepdive req 1779017235)?", "ground_truth": ["d3f572d1"] },
-    { "id": "H4", "set": "heldout", "question": "What is the purpose, intent and current state of the glow-up project (the brief for the two joining developers)?", "ground_truth": ["2813ae6a", "8bf5355a"] },
-    { "id": "H5", "set": "heldout", "question": "Do we have real scraper code for each platform (Mindbody, Vagaro, Square, Boulevard, Booksy)?", "ground_truth": ["7bf4b078"] },
-    { "id": "H6", "set": "heldout", "question": "How did we upgrade the NVIDIA drivers, and were there any gotchas?", "ground_truth": ["e91f8acf"] },
-    { "id": "H7", "set": "heldout", "question": "How was the number of displayed templates made configurable in the glow-up template view?", "ground_truth": ["2807545a"] },
-    { "id": "H8", "set": "heldout", "question": "What did the dinoMaker webapp do and how was the camera-to-dino image flow built?", "ground_truth": ["7eb4f3c3"] },
-    { "id": "H9", "set": "heldout", "question": "What was wrong when the Slack desktop app wouldn't open, and what fixed it?", "ground_truth": ["c2284b30"] },
-    { "id": "H10", "set": "heldout", "question": "Why did the wix-deepdive MCP expose only 17 tools when we expected more?", "ground_truth": ["2de735a0"] },
-    { "id": "N1", "set": "negative", "question": "How did we set up Terraform for glow-up infrastructure?", "ground_truth": [] },
-    { "id": "N2", "set": "negative", "question": "What did we decide about Redis caching in booking-checkout-owner?", "ground_truth": [] },
-    { "id": "N3", "set": "negative", "question": "How did we fix the failing Docker build in roundtable-mcp?", "ground_truth": [] },
-    { "id": "N4", "set": "negative", "question": "Which session set up Kubernetes ingress for the links project?", "ground_truth": [] },
-    { "id": "N5", "set": "negative", "question": "How did we configure Playwright visual-regression snapshots in dinoMaker?", "ground_truth": [] }
+    {
+      "id": "T1",
+      "set": "tuning",
+      "question": "How did we fix the wix-deepdive MCP -32000 connection error? What was the root cause?",
+      "ground_truth": [
+        "520b8330"
+      ]
+    },
+    {
+      "id": "T2",
+      "set": "tuning",
+      "question": "What happens end-to-end when a Vagaro URL is pasted into glow-up and Continue is clicked?",
+      "ground_truth": [
+        "a533a625"
+      ]
+    },
+    {
+      "id": "T3",
+      "set": "tuning",
+      "question": "Why were services not imported for a generated glow-up site (desert-beauty-salo-2 case)?",
+      "ground_truth": [
+        "c4719074"
+      ]
+    },
+    {
+      "id": "T4",
+      "set": "tuning",
+      "question": "What was the Harmony site-publish bug — draft written but cloned site not published — and where did we leave it?",
+      "ground_truth": [
+        "d6c38df4",
+        "f627586c",
+        "c54c9f50"
+      ]
+    },
+    {
+      "id": "T5",
+      "set": "tuning",
+      "question": "Where is the reference code for sending SMS via Twilio that we used?",
+      "ground_truth": [
+        "d477e3df"
+      ]
+    },
+    {
+      "id": "T6",
+      "set": "tuning",
+      "question": "How did we fix the GlobalProtect VPN that stopped connecting (custom script)?",
+      "ground_truth": [
+        "9cea4cb0",
+        "95780f7f"
+      ]
+    },
+    {
+      "id": "T7",
+      "set": "tuning",
+      "question": "Can the roundtable MCP be converted to a skill? What did we conclude and how?",
+      "ground_truth": [
+        "7f3c98e1",
+        "cb4b1006"
+      ]
+    },
+    {
+      "id": "T8",
+      "set": "tuning",
+      "question": "Why did the old API allow 52 but the new one limits to 12 (bookings)?",
+      "ground_truth": [
+        "e3f1b2ee"
+      ]
+    },
+    {
+      "id": "T9",
+      "set": "tuning",
+      "question": "How did we identify which process was writing to the HDD/SSD?",
+      "ground_truth": [
+        "41560a5d",
+        "8880a2bf"
+      ]
+    },
+    {
+      "id": "T10",
+      "set": "tuning",
+      "question": "What part of glow-up changes the text in the generated site?",
+      "ground_truth": [
+        "f8ed78b1"
+      ]
+    },
+    {
+      "id": "H1",
+      "set": "heldout",
+      "question": "Why did Cursor still open the old version after installing via App Center, and what fixed it?",
+      "ground_truth": [
+        "ae9db516"
+      ]
+    },
+    {
+      "id": "H2",
+      "set": "heldout",
+      "question": "How does the glow-up E2E flow work, step by step?",
+      "ground_truth": [
+        "0916f8f8"
+      ]
+    },
+    {
+      "id": "H3",
+      "set": "heldout",
+      "question": "What did we find when investigating the failed order creation (deepdive req 1779017235)?",
+      "ground_truth": [
+        "d3f572d1"
+      ]
+    },
+    {
+      "id": "H4",
+      "set": "heldout",
+      "question": "What is the purpose, intent and current state of the glow-up project (the brief for the two joining developers)?",
+      "ground_truth": [
+        "2813ae6a",
+        "8bf5355a"
+      ]
+    },
+    {
+      "id": "H5",
+      "set": "heldout",
+      "question": "Do we have real scraper code for each platform (Mindbody, Vagaro, Square, Boulevard, Booksy)?",
+      "ground_truth": [
+        "7bf4b078"
+      ]
+    },
+    {
+      "id": "H6",
+      "set": "heldout",
+      "question": "How did we upgrade the NVIDIA drivers, and were there any gotchas?",
+      "ground_truth": [
+        "e91f8acf"
+      ]
+    },
+    {
+      "id": "H7",
+      "set": "heldout",
+      "question": "How was the number of displayed templates made configurable in the glow-up template view?",
+      "ground_truth": [
+        "2807545a"
+      ]
+    },
+    {
+      "id": "H8",
+      "set": "heldout",
+      "question": "What did the dinoMaker webapp do and how was the camera-to-dino image flow built?",
+      "ground_truth": [
+        "7eb4f3c3"
+      ]
+    },
+    {
+      "id": "H9",
+      "set": "heldout",
+      "question": "What was wrong when the Slack desktop app wouldn't open, and what fixed it?",
+      "ground_truth": [
+        "c2284b30"
+      ]
+    },
+    {
+      "id": "H10",
+      "set": "heldout",
+      "question": "Why did the wix-deepdive MCP expose only 17 tools when we expected more?",
+      "ground_truth": [
+        "2de735a0"
+      ]
+    },
+    {
+      "id": "N1",
+      "set": "negative",
+      "question": "How did we set up Terraform for glow-up infrastructure?",
+      "ground_truth": []
+    },
+    {
+      "id": "N2",
+      "set": "negative",
+      "question": "What did we decide about Redis caching in booking-checkout-owner?",
+      "ground_truth": []
+    },
+    {
+      "id": "N3",
+      "set": "negative",
+      "question": "How did we fix the failing Docker build in roundtable-mcp?",
+      "ground_truth": []
+    },
+    {
+      "id": "N4",
+      "set": "negative",
+      "question": "Which session set up Kubernetes ingress for the links project?",
+      "ground_truth": []
+    },
+    {
+      "id": "N5",
+      "set": "negative",
+      "question": "How did we configure Playwright visual-regression snapshots in dinoMaker?",
+      "ground_truth": []
+    },
+    {
+      "id": "P1",
+      "set": "paraphrase",
+      "question": "Why did the assistant's bridge to our internal Wix services keep refusing to start up, and what was actually causing it?",
+      "ground_truth": [
+        "520b8330"
+      ]
+    },
+    {
+      "id": "P2",
+      "set": "paraphrase",
+      "question": "What turned out to be behind the garbled, flickering image on the second external screen, and did refreshing the video-card software actually solve it?",
+      "ground_truth": [
+        "e91f8acf"
+      ]
+    },
+    {
+      "id": "P3",
+      "set": "paraphrase",
+      "question": "What was preventing the team messaging app from launching on the desktop, and how did we get it to start again?",
+      "ground_truth": [
+        "c2284b30"
+      ]
+    },
+    {
+      "id": "P4",
+      "set": "paraphrase",
+      "question": "How did we restore the encrypted corporate network tunnel after it stopped letting us connect, using a hand-written helper script?",
+      "ground_truth": [
+        "9cea4cb0"
+      ]
+    },
+    {
+      "id": "P5",
+      "set": "paraphrase",
+      "question": "Where is the sample integration we relied on for delivering short text messages to phones programmatically?",
+      "ground_truth": [
+        "d477e3df"
+      ]
+    },
+    {
+      "id": "P6",
+      "set": "paraphrase",
+      "question": "After installing the AI code editor through the company's internal software portal, why did it keep opening an outdated build, and what was the remedy?",
+      "ground_truth": [
+        "ae9db516"
+      ]
+    }
   ]
 }
