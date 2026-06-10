@@ -18,12 +18,40 @@
 import { spawn } from "node:child_process";
 import { mkdtemp, readFile, readdir, rm } from "node:fs/promises";
 import { homedir, tmpdir } from "node:os";
+import { platform } from "node:process";
 import { join } from "node:path";
 import { readMessagesFor } from "./adapters/index.js";
 import { redact } from "./scanner.js";
 import type { NormalizedMessage, SessionMeta } from "./types.js";
 
 export const EXTRACTOR_VERSION = 2; // v2: preserve reference URLs/paths; capture artifact content for doc sessions; exclude harness mechanics from rules
+
+/** Safe temp directory cleanup with retry for Windows file-locking races. */
+async function safeRm(path: string): Promise<void> {
+  if (platform !== "win32") {
+    await rm(path, { recursive: true, force: true });
+    return;
+  }
+  // On Windows, files can remain locked for ~100-500ms after process exit.
+  // Retry with exponential backoff up to 2s total.
+  const maxAttempts = 8;
+  const baseDelay = 50;
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    try {
+      await rm(path, { recursive: true, force: true });
+      return;
+    } catch (e: any) {
+      if (e.code !== "EBUSY" && e.code !== "EPERM") throw e;
+      if (attempt === maxAttempts - 1) {
+        // Last attempt: log but don't throw — orphaned temp dirs are harmless
+        console.warn(`[links] Failed to clean up temp dir ${path}: ${e.message}`);
+        return;
+      }
+      await new Promise((r) => setTimeout(r, baseDelay * 2 ** attempt));
+    }
+  }
+}
+
 const CHUNK_CHARS = 320_000; // ~80k tokens — safe under codex context
 const MAX_MSG_CHARS = 1_600;
 const MAX_TOOL_RESULT_CHARS = 600;
@@ -97,6 +125,10 @@ export async function codexStructured<T>(prompt: string, schemaPath: string): Pr
   return codexJson(prompt, schemaPath) as Promise<T>;
 }
 
+function stripFences(s: string): string {
+  return s.replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/, "");
+}
+
 async function codexJson(prompt: string, schemaPath: string): Promise<CardData> {
   const bin = await resolveCodex();
   const work = await mkdtemp(join(tmpdir(), "links-codex-"));
@@ -123,12 +155,8 @@ async function codexJson(prompt: string, schemaPath: string): Promise<CardData> 
     }
     throw lastErr;
   } finally {
-    await rm(work, { recursive: true, force: true });
+    await safeRm(work);
   }
-}
-
-function stripFences(s: string): string {
-  return s.replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/, "");
 }
 
 // ---------- claude headless engine (for friends who have Claude Code, not codex) ----------
@@ -183,7 +211,7 @@ export async function claudeJson(prompt: string, schemaPath: string): Promise<Ca
     }
     throw lastErr;
   } finally {
-    await rm(work, { recursive: true, force: true });
+    await safeRm(work);
   }
 }
 
