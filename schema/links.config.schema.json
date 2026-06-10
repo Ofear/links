@@ -53,6 +53,11 @@
       "type": "string",
       "enum": ["codex", "claude", "api-key"]
     },
+    "embedder": {
+      "description": "Retrieval embedder. `hash` = zero-dependency local char-n-gram (default, works on clone). `minilm` = all-MiniLM-L6-v2 via Transformers.js (~25MB one-time download, keyless/offline after) for real semantic recall on paraphrase queries.",
+      "type": "string",
+      "enum": ["hash", "minilm"]
+    },
     "codexBin": {
       "description": "Explicit path to the codex binary, bypassing auto-discovery.",
       "type": "string"

@@ -30,6 +30,11 @@ export interface ScopeRule {
  */
 export type ExtractionEngine = "codex" | "claude" | "api-key";
 
+/** Retrieval embedder. "hash" = zero-dependency local char-n-gram (default, works
+ *  on clone). "minilm" = all-MiniLM-L6-v2 via Transformers.js (~25MB one-time
+ *  download, keyless/offline after) — real semantic recall on paraphrase queries. */
+export type EmbedderKind = "hash" | "minilm";
+
 export interface LinksConfig {
   /** Ordered scope rules; the LAST entry is the fallback scope. */
   scopes: ScopeRule[];
@@ -46,6 +51,8 @@ export interface LinksConfig {
   };
   /** Card extraction engine. Default "codex". */
   extractionEngine: ExtractionEngine;
+  /** Retrieval embedder. Default "hash" (zero-dep). "minilm" for real semantic recall. */
+  embedder: EmbedderKind;
   /** Extraction engine binary override (else auto-discovery). */
   codexBin?: string;
   /**
@@ -85,6 +92,7 @@ const DEFAULTS: LinksConfig = {
     codexSessions: "~/.codex/sessions",
   },
   extractionEngine: "codex",
+  embedder: "hash",
   codexFallback: {
     extensionsDir: "~/.cursor/extensions",
     extensionPrefix: "openai.chatgpt-",
