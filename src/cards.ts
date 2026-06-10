@@ -14,7 +14,10 @@ const TOOL_PREFIX: Record<string, string> = { "claude-code": "cc", codex: "cx", 
 /** SINGLE source of truth for card ids — every component must use this. */
 export function cardId(meta: Pick<SessionMeta, "tool" | "id" | "startedAt">): string {
   const date = meta.startedAt?.slice(0, 10) ?? "undated";
-  return `${TOOL_PREFIX[meta.tool] ?? "xx"}-${date}-${meta.id.slice(0, 8)}`;
+  // Use full session UUID (36 chars) to guarantee uniqueness across all tools.
+  // Codex sessions in particular share common UUID prefixes (e.g. 019e942...)
+  // causing collisions with shorter slices. The full ID is the source of truth.
+  return `${TOOL_PREFIX[meta.tool] ?? "xx"}-${date}-${meta.id}`;
 }
 
 function section(title: string, items: EvidencedItem[]): string {
