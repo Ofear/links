@@ -179,6 +179,38 @@ export function loadHidden(scopeDir: string): Set<string> {
   return ids;
 }
 
+/** Shape of a links.json entry — only the edge we care about here. */
+type LinkEntry = { supersededBy?: string[] };
+
+/**
+ * Cards that a NEWER, continuity-linked card has superseded (links.json entry
+ * with a non-empty `supersededBy`). The newer card wins, so the old one is
+ * dropped from default search/recall — but it stays reachable by id /
+ * get_card / expand_links and is never deleted. Same mtime-cached pattern as
+ * loadHidden so a fresh `link` run is picked up without a restart.
+ */
+const supersededCache = new Map<string, { mtimeMs: number; ids: Set<string> }>();
+export function loadSuperseded(scopeDir: string): Set<string> {
+  const path = join(scopeDir, "links.json");
+  let mtimeMs: number;
+  try {
+    mtimeMs = statSync(path).mtimeMs;
+  } catch {
+    return new Set(); // no links.json yet — nothing superseded
+  }
+  const cached = supersededCache.get(scopeDir);
+  if (cached && cached.mtimeMs === mtimeMs) return cached.ids;
+  let ids = new Set<string>();
+  try {
+    const graph = JSON.parse(readFileSync(path, "utf8")) as Record<string, LinkEntry>;
+    ids = new Set(Object.entries(graph).flatMap(([id, e]) => ((e.supersededBy?.length ?? 0) > 0 ? [id] : [])));
+  } catch {
+    ids = new Set();
+  }
+  supersededCache.set(scopeDir, { mtimeMs, ids });
+  return ids;
+}
+
 export function searchIndex(scopeDir: string, query: string, limit = 10): IndexRow[] {
   const db = openDb(scopeDir);
   try {
@@ -284,8 +316,11 @@ export async function hybridSearch(
       }
     }
 
-    // drop dedup-hidden cards before fusion (still reachable by id elsewhere)
+    // drop dedup-hidden AND superseded cards before fusion — a newer card has
+    // replaced the superseded one, so surfacing it would be contamination
+    // (still reachable by id elsewhere; neither is deleted)
     for (const id of loadHidden(scopeDir)) cands.delete(id);
+    for (const id of loadSuperseded(scopeDir)) cands.delete(id);
 
     const fused: ScoredCard[] = fuse([...cands.values()], undefined, limit);
     if (!fused.length) return [];

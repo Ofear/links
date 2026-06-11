@@ -29,6 +29,7 @@ check("default excludes are empty (machine-specific excludes live in ~/.links/co
 check("default extraction engine is codex", d.extractionEngine === "codex");
 check("default codexFallback targets the cursor extension", d.codexFallback.extensionPrefix === "openai.chatgpt-");
 check("default gate.minSizeKb=10", d.gate.minSizeKb === 10);
+check("default injectBudgetTokens=1800", d.injectBudgetTokens === 1800);
 
 // ---- expandHome ----
 check("expandHome resolves ~", expandHome("~/x") === join(homedir(), "x"));

@@ -153,49 +153,36 @@ async function inject(cwd: string): Promise<void> {
   const facts = await factsForInjection(scopeDir, project);
   const notes = await notesForInjection(scopeDir, project);
   if (!rows.length && !rules.length && !facts.length && !notes.length) return; // nothing relevant — cost zero
-  const parts: string[] = ["# links: memory for this project"];
-  if (rules.length) {
-    parts.push(
-      `## Standing rules the user already told you (do NOT make them re-explain)\n${rules.join("\n")}`,
-    );
-  }
-  if (facts.length) {
-    parts.push(`## Durable facts & decisions (don't re-derive these)\n${facts.join("\n")}`);
-  }
-  if (notes.length) {
-    parts.push(`## Pinned notes\n${notes.join("\n")}`);
-  }
-  if (rows.length) {
-    const { getSessionRow } = await import("./db.js");
-    const { validateCard } = await import("./validate.js");
-    // Flag stale/broken recent cards right in the push so tier-0 never silently
-    // asserts a fact whose code has since moved. Cheap: validateCard caches per
-    // (repo, SHA) and these rows share one project ⇒ usually one git call.
-    const lines = await Promise.all(
-      rows.map(async (r) => {
-        const base = `- ${r.card_id} · ${r.date} · ${r.outcome} · ${r.intent.slice(0, 100)}`;
-        const sr = getSessionRow(scopeDir, r.card_id);
-        if (!sr) return base;
-        const m = JSON.parse((sr as unknown as { meta_json: string }).meta_json) as {
-          filesTouched?: string[]; endedAt?: string; cwd?: string; gitCommit?: string; gitBranch?: string;
-        };
-        if (!m.filesTouched?.length) return base;
-        const v = await validateCard({
-          filesTouched: m.filesTouched, endedAt: m.endedAt, cwd: m.cwd,
-          gitCommit: m.gitCommit, gitBranch: m.gitBranch,
-        });
-        return v.freshness === "stale" ? `${base}  [⚠ stale]`
-          : v.freshness === "broken" ? `${base}  [⛔ code moved]`
-          : base;
-      }),
-    );
-    parts.push(
-      `## Recent sessions (${rows.length})\nBefore re-investigating anything, check if it was already solved: ` +
-        `use links-${scope} MCP (search → get_card → read_session with msg ranges). Pin durable facts with pin_note.\n` +
-        lines.join("\n"),
-    );
-  }
-  console.log(parts.join("\n\n"));
+
+  // Validate each recent row against current code so the assembler can drop
+  // broken rows / flag stale ones. Cheap: validateCard caches per (repo, SHA)
+  // and these rows share one project ⇒ usually one git call.
+  const { getSessionRow } = await import("./db.js");
+  const { validateCard } = await import("./validate.js");
+  const recent = await Promise.all(
+    rows.map(async (r) => {
+      const line = `- ${r.card_id} · ${r.date} · ${r.outcome} · ${r.intent.slice(0, 100)}`;
+      const sr = getSessionRow(scopeDir, r.card_id);
+      if (!sr) return { line, freshness: "unknown" as const };
+      const m = JSON.parse((sr as unknown as { meta_json: string }).meta_json) as {
+        filesTouched?: string[]; endedAt?: string; cwd?: string; gitCommit?: string; gitBranch?: string;
+      };
+      if (!m.filesTouched?.length) return { line, freshness: "unknown" as const };
+      const v = await validateCard({
+        filesTouched: m.filesTouched, endedAt: m.endedAt, cwd: m.cwd,
+        gitCommit: m.gitCommit, gitBranch: m.gitBranch,
+      });
+      return { line, freshness: v.freshness };
+    }),
+  );
+
+  const { buildInjection } = await import("./inject.js");
+  const { config } = await import("./config.js");
+  const block = buildInjection(
+    { notes, rules, facts, recent },
+    { budgetTokens: config().injectBudgetTokens, scope },
+  );
+  if (block) console.log(block);
 }
 
 /** Read piped stdin (the hook payload JSON) to completion; "" if none/TTY. */

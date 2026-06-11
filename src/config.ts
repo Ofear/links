@@ -53,6 +53,13 @@ export interface LinksConfig {
   extractionEngine: ExtractionEngine;
   /** Retrieval embedder. Default "hash" (zero-dep). "minilm" for real semantic recall. */
   embedder: EmbedderKind;
+  /**
+   * Token budget for the SessionStart push (`inject`). The assembler fills tiers
+   * in priority order (pinned notes → rules → facts → recent) up to this many
+   * tokens (estimated chars/4); lower tiers truncate to fit. Default 1800 — big
+   * enough to carry standing rules + a few recent sessions, small enough that the
+   * push stays cheap (links' whole edge is being lightweight). */
+  injectBudgetTokens: number;
   /** Extraction engine binary override (else auto-discovery). */
   codexBin?: string;
   /**
@@ -93,6 +100,7 @@ const DEFAULTS: LinksConfig = {
   },
   extractionEngine: "codex",
   embedder: "hash",
+  injectBudgetTokens: 1800,
   codexFallback: {
     extensionsDir: "~/.cursor/extensions",
     extensionPrefix: "openai.chatgpt-",
