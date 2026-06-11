@@ -38,7 +38,16 @@ function dupKey(text: string): string {
 /** Harness noise the extractor sometimes mislabels as user rules. */
 const NOISE_RE = /local-command|command-message|caveat|system-reminder|harness/i;
 
-export async function aggregateRules(scopeDir: string): Promise<Map<string, RuleEntry[]>> {
+/**
+ * Generic per-project harvest of a card text-field (rules, decisions, …) with
+ * provenance + near-dup collapse (newest phrasing wins). `pick` selects which
+ * card field; `noise` optionally drops harness-mechanics lines.
+ */
+async function aggregateField(
+  scopeDir: string,
+  pick: (c: CardData) => { text: string }[],
+  noise?: RegExp,
+): Promise<Map<string, RuleEntry[]>> {
   const raw = await readFile(join(scopeDir, "index.jsonl"), "utf8").catch(() => "");
   const metaById = new Map<string, SessionMeta>();
   for (const line of raw.split("\n")) {
@@ -56,8 +65,8 @@ export async function aggregateRules(scopeDir: string): Promise<Map<string, Rule
     } catch {
       continue;
     }
-    for (const r of card.rules) {
-      if (NOISE_RE.test(r.text)) continue;
+    for (const r of pick(card)) {
+      if (noise?.test(r.text)) continue;
       const list = byProject.get(meta.project) ?? [];
       list.push({ text: r.text, cardId: id, project: meta.project, date: meta.startedAt?.slice(0, 10) ?? "" });
       byProject.set(meta.project, list);
@@ -72,6 +81,10 @@ export async function aggregateRules(scopeDir: string): Promise<Map<string, Rule
     byProject.set(project, [...seen.values()].sort((a, b) => b.date.localeCompare(a.date)));
   }
   return byProject;
+}
+
+export async function aggregateRules(scopeDir: string): Promise<Map<string, RuleEntry[]>> {
+  return aggregateField(scopeDir, (c) => c.rules, NOISE_RE);
 }
 
 /**
@@ -197,4 +210,42 @@ export async function notesForInjection(scopeDir: string, project: string, maxNo
 
 export async function listRuleProjects(scopeDir: string): Promise<string[]> {
   return (await readdir(join(scopeDir, "rules")).catch(() => [])).map((f) => f.replace(/\.md$/, ""));
+}
+
+// ---------------------------------------------------------------- facts layer
+// "Durable facts the agent shouldn't re-derive" — auto-harvested from each
+// card's `decisions` (the closest existing signal to a curated fact), surfaced
+// the same PUSH way as rules so a keep-worthy one-liner doesn't need a manual
+// pin_note. Provenance + near-dup collapse; hand edits preserved via PINNED.
+
+/** Write store/<scope>/facts/<project>.md from harvested card decisions. */
+export async function writeFactsFiles(scopeDir: string): Promise<{ projects: number; facts: number }> {
+  const byProject = await aggregateField(scopeDir, (c) => c.decisions);
+  const dir = join(scopeDir, "facts");
+  await (await import("node:fs/promises")).mkdir(dir, { recursive: true });
+  let total = 0;
+  for (const [project, facts] of byProject) {
+    const path = join(dir, `${project.replace(/[^\w.-]/g, "_")}.md`);
+    const existing = await readFile(path, "utf8").catch(() => "");
+    const pinned = existing.includes(GENERATED_HEADER)
+      ? existing.slice(0, existing.indexOf(GENERATED_HEADER)).trimEnd()
+      : "## PINNED (hand-edited, never regenerated)\n";
+    const fmt = (r: RuleEntry) => `- ${r.text}  *(from [[${r.cardId}]], ${r.date})*`;
+    const generated = `## Decisions & facts (auto-harvested — check dates before trusting)\n${facts.map(fmt).join("\n")}`;
+    total += facts.length;
+    await writeFile(path, `${pinned}\n\n${GENERATED_HEADER}\n\n${generated}\n`);
+  }
+  return { projects: byProject.size, facts: total };
+}
+
+/** Compact facts block for tier-0 injection: project decisions + hand-pinned lines. */
+export async function factsForInjection(scopeDir: string, project: string, maxFacts = 8): Promise<string[]> {
+  const path = join(scopeDir, "facts", `${project.replace(/[^\w.-]/g, "_")}.md`);
+  const content = await readFile(path, "utf8").catch(() => "");
+  if (!content) return [];
+  return content
+    .split("\n")
+    .filter((l) => l.startsWith("- "))
+    .slice(0, maxFacts)
+    .map((l) => l.replace(/\s*\*\(from.*\)\*\s*$/, "")); // strip provenance for compactness
 }

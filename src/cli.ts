@@ -143,20 +143,24 @@ async function buildIndex(): Promise<void> {
  */
 async function inject(cwd: string): Promise<void> {
   const { recentForProject } = await import("./db.js");
-  const { rulesForInjection, notesForInjection } = await import("./rules.js");
+  const { rulesForInjection, notesForInjection, factsForInjection } = await import("./rules.js");
   const { basename } = await import("node:path");
   const scope = scopeForCwd(cwd);
   const scopeDir = join(STORE, scope);
   const project = basename(cwd);
   const rows = recentForProject(scopeDir, project, 8);
   const rules = await rulesForInjection(scopeDir, project);
+  const facts = await factsForInjection(scopeDir, project);
   const notes = await notesForInjection(scopeDir, project);
-  if (!rows.length && !rules.length && !notes.length) return; // nothing relevant — cost zero
+  if (!rows.length && !rules.length && !facts.length && !notes.length) return; // nothing relevant — cost zero
   const parts: string[] = ["# links: memory for this project"];
   if (rules.length) {
     parts.push(
       `## Standing rules the user already told you (do NOT make them re-explain)\n${rules.join("\n")}`,
     );
+  }
+  if (facts.length) {
+    parts.push(`## Durable facts & decisions (don't re-derive these)\n${facts.join("\n")}`);
   }
   if (notes.length) {
     parts.push(`## Pinned notes\n${notes.join("\n")}`);
@@ -192,6 +196,88 @@ async function inject(cwd: string): Promise<void> {
     );
   }
   console.log(parts.join("\n\n"));
+}
+
+/** Read piped stdin (the hook payload JSON) to completion; "" if none/TTY. */
+async function readStdin(): Promise<string> {
+  if (process.stdin.isTTY) return "";
+  const chunks: Buffer[] = [];
+  for await (const c of process.stdin) chunks.push(c as Buffer);
+  return Buffer.concat(chunks).toString("utf8");
+}
+
+/**
+ * Per-turn PULL→PUSH bridge — called by a Claude Code UserPromptSubmit hook.
+ * Reads the user's prompt from the hook payload, runs hybrid search, and pushes
+ * the top relevant card(s) into context so the agent sees prior work WITHOUT
+ * having to think to search. Three guards keep it native-but-light (not a
+ * claude-mem firehose):
+ *   1. ABSOLUTE relevance gate — query↔card cosine ≥ RECALL_MIN_SIM. Fused score
+ *      is relative (always ~high), so we gate on raw semantic sim instead.
+ *   2. Per-session dedup — never re-surface a card already injected this session.
+ *   3. Cap 2 + skip trivial prompts. Nothing clears the bar ⇒ zero output.
+ */
+// MiniLM cosine: real topical hits land ~0.4+, unrelated noise <0.2 — 0.35 sits
+// in the clear gap (measured: relevant 0.44 vs next-best 0.17 on this corpus).
+const RECALL_MIN_SIM = 0.35;
+async function recall(): Promise<void> {
+  const input = await readStdin();
+  let payload: { prompt?: string; cwd?: string; session_id?: string } = {};
+  try {
+    payload = JSON.parse(input);
+  } catch {
+    /* not invoked as a hook — fall back to argv */
+  }
+  const prompt = (payload.prompt ?? process.argv[3] ?? "").trim();
+  if (prompt.length < 12) return; // too short to be a real recall query
+  const cwd = payload.cwd ?? process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
+  const sessionId = payload.session_id ?? "nosession";
+  const scope = scopeForCwd(cwd);
+  const scopeDir = join(STORE, scope);
+
+  const { hybridSearch, getSessionRow } = await import("./db.js");
+  let hits;
+  try {
+    hits = await hybridSearch(scopeDir, prompt, 5);
+  } catch {
+    return; // search/embed unavailable → silent, never block the prompt
+  }
+  const relevant = hits.filter((h) => h.has_card && (h.semanticSim ?? 0) >= RECALL_MIN_SIM);
+  if (!relevant.length) return; // nothing clears the absolute bar → cost zero
+
+  // per-session dedup: don't re-surface a card already pushed this session
+  const { homedir } = await import("node:os");
+  const cacheDir = join(homedir(), ".links", "cache");
+  await mkdir(cacheDir, { recursive: true });
+  const cachePath = join(cacheDir, `recall-${sessionId.replace(/[^\w.-]/g, "_")}.json`);
+  const seen = JSON.parse(await readFile(cachePath, "utf8").catch(() => "[]")) as string[];
+  const fresh = relevant.filter((h) => !seen.includes(h.card_id)).slice(0, 2);
+  if (!fresh.length) return;
+
+  // flag stale/broken so a per-turn nudge never silently asserts moved code
+  const { validateCard } = await import("./validate.js");
+  const lines = await Promise.all(
+    fresh.map(async (h) => {
+      const base = `- ${h.card_id} · ${h.date} · ${h.intent.slice(0, 100)} — ${h.why}`;
+      const sr = getSessionRow(scopeDir, h.card_id);
+      if (!sr) return base;
+      const m = JSON.parse((sr as unknown as { meta_json: string }).meta_json) as {
+        filesTouched?: string[]; endedAt?: string; cwd?: string; gitCommit?: string; gitBranch?: string;
+      };
+      if (!m.filesTouched?.length) return base;
+      const v = await validateCard({
+        filesTouched: m.filesTouched, endedAt: m.endedAt, cwd: m.cwd, gitCommit: m.gitCommit, gitBranch: m.gitBranch,
+      });
+      return v.freshness === "stale" ? `${base}  [⚠ stale]`
+        : v.freshness === "broken" ? `${base}  [⛔ code moved]`
+        : base;
+    }),
+  );
+
+  await writeFile(cachePath, JSON.stringify([...seen, ...fresh.map((h) => h.card_id)]));
+  console.log(
+    `# links: possibly relevant past work — get_card via links-${scope} MCP for detail\n${lines.join("\n")}`,
+  );
 }
 
 /** Compute graph edges and re-render all card .md files with their Links section. */
@@ -235,9 +321,10 @@ async function refresh(): Promise<void> {
   await extract(["--all"]); // skip-existing: only new sessions cost anything
   await link();
   await buildIndex();
-  const { writeRulesFiles } = await import("./rules.js");
+  const { writeRulesFiles, writeFactsFiles } = await import("./rules.js");
   for (const scope of scopeNames()) {
     await writeRulesFiles(join(STORE, scope));
+    await writeFactsFiles(join(STORE, scope));
   }
   console.log("refresh complete");
 }
@@ -326,6 +413,8 @@ if (cmd === "ingest") {
   }
 } else if (cmd === "inject") {
   await inject(process.argv[3] ?? process.cwd());
+} else if (cmd === "recall") {
+  await recall();
 } else if (cmd === "extract") {
   const ids = process.argv.slice(3);
   if (!ids.length) {
@@ -335,7 +424,7 @@ if (cmd === "ingest") {
   await extract(ids);
 } else {
   console.error(
-    "usage: tsx src/cli.ts init | ingest | index | link | rules [--curate] | refresh | inject [cwd] | extract <id>...|--all [--force]",
+    "usage: tsx src/cli.ts init | ingest | index | link | rules [--curate] | refresh | inject [cwd] | recall (stdin hook payload) | extract <id>...|--all [--force]",
   );
   process.exit(1);
 }
