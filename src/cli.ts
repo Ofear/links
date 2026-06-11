@@ -330,6 +330,66 @@ async function refresh(): Promise<void> {
 }
 
 /**
+ * Migrate a store written under an OLD cardId scheme (cc-DATE-{hash8}) to the
+ * current full-UUID scheme (cc-DATE-{full-id}; see cards.ts — full ids prevent
+ * the prefix collisions that short hashes caused for Codex sessions). Card
+ * CONTENTS are unchanged, so this RENAMES files in place — no re-extraction —
+ * then rebuilds derived data (graph + index + rules) so the store is immediately
+ * consistent. Idempotent: an already-migrated store renames nothing.
+ *
+ * Match is from the file side by UUID prefix, scoped, and collision-safe: a
+ * short tail matching 0 or >1 index ids is reported and skipped, never guessed.
+ */
+async function migrate(): Promise<void> {
+  const { readdir, rename } = await import("node:fs/promises");
+  const { existsSync } = await import("node:fs");
+  let totalRenamed = 0;
+  for (const scope of scopeNames()) {
+    const scopeDir = join(STORE, scope);
+    const cardsDir = join(scopeDir, "cards");
+    const raw = await readFile(join(scopeDir, "index.jsonl"), "utf8").catch(() => "");
+    const metas = raw.split("\n").filter((l) => l.trim()).map((l) => JSON.parse(l) as SessionMeta);
+    const files = await readdir(cardsDir).catch(() => [] as string[]);
+    let renamed = 0, ambiguous = 0, orphan = 0;
+    for (const f of files) {
+      if (!f.endsWith(".json")) continue;
+      // strip "<tool>-YYYY-MM-DD-" → the trailing id token; a full uuid is 36 chars
+      const tail = f.replace(/^[a-z]{2}-\d{4}-\d{2}-\d{2}-/, "").replace(/\.json$/, "");
+      if (tail.length > 8) continue; // already full-uuid (or non-standard) — leave it
+      const cands = metas.filter((m) => m.id.startsWith(tail));
+      if (cands.length !== 1) {
+        cands.length ? ambiguous++ : orphan++;
+        continue;
+      }
+      const oldBase = f.replace(/\.json$/, "");
+      const newBase = cardId(cands[0]!);
+      if (newBase === oldBase) continue;
+      for (const ext of [".json", ".md"]) {
+        const o = join(cardsDir, oldBase + ext);
+        if (existsSync(o)) {
+          await rename(o, join(cardsDir, newBase + ext));
+          renamed++;
+        }
+      }
+    }
+    totalRenamed += renamed;
+    const extra = [ambiguous && `${ambiguous} ambiguous`, orphan && `${orphan} orphan (no index match)`]
+      .filter(Boolean).join(", ");
+    console.log(`${scope}: ${renamed} files renamed${extra ? ` — skipped ${extra}` : ""}`);
+  }
+  if (totalRenamed === 0) {
+    console.log("store already on the current cardId scheme — nothing to migrate");
+    return;
+  }
+  console.log("rebuilding graph + index + rules…");
+  await link();
+  await buildIndex();
+  const { writeRulesFiles } = await import("./rules.js");
+  for (const scope of scopeNames()) await writeRulesFiles(join(STORE, scope));
+  console.log(`migrate complete: ${totalRenamed} files renamed`);
+}
+
+/**
  * First-run setup for a new machine: detect installed tools, write a
  * personalized links.config.json, scan the corpus, and PRINT the registration
  * commands (MCP servers + hooks) — we never silently edit another tool's
@@ -404,6 +464,8 @@ if (cmd === "ingest") {
   await link();
 } else if (cmd === "refresh") {
   await refresh();
+} else if (cmd === "migrate") {
+  await migrate();
 } else if (cmd === "rules") {
   const curate = process.argv.includes("--curate");
   const { writeRulesFiles } = await import("./rules.js");
@@ -424,7 +486,7 @@ if (cmd === "ingest") {
   await extract(ids);
 } else {
   console.error(
-    "usage: tsx src/cli.ts init | ingest | index | link | rules [--curate] | refresh | inject [cwd] | recall (stdin hook payload) | extract <id>...|--all [--force]",
+    "usage: tsx src/cli.ts init | ingest | index | link | rules [--curate] | refresh | migrate | inject [cwd] | recall (stdin hook payload) | extract <id>...|--all [--force]",
   );
   process.exit(1);
 }
