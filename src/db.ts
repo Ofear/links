@@ -210,6 +210,11 @@ export interface HybridRow extends IndexRow {
   score: number;
   /** WHY this card matched — which signals fired (lexical/semantic) and how strongly. */
   why: string;
+  /** Raw query↔card cosine (absolute 0..1), if a semantic signal fired. Unlike
+   *  `score` (relative min-max within the candidate set) this is an ABSOLUTE
+   *  relevance number — the only signal suitable for a "is anything actually
+   *  relevant?" gate (per-turn recall). undefined when no vector matched. */
+  semanticSim?: number;
 }
 
 /**
@@ -298,7 +303,8 @@ export async function hybridSearch(
     return fused
       .map((f): HybridRow | undefined => {
         const m = byId.get(f.cardId);
-        return m ? { ...m, score: f.score, why: f.why } : undefined;
+        // attach the RAW absolute cosine (not the fused/normalized score) for gating
+        return m ? { ...m, score: f.score, why: f.why, semanticSim: cands.get(f.cardId)?.vectorSim } : undefined;
       })
       .filter((r): r is HybridRow => !!r);
   } finally {
