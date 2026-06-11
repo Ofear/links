@@ -58,6 +58,11 @@
       "type": "string",
       "enum": ["hash", "minilm"]
     },
+    "injectBudgetTokens": {
+      "description": "Token budget for the SessionStart push (`inject`). Tiers (pinned notes -> rules -> facts -> recent sessions) fill in priority order up to this many tokens (estimated chars/4); lower tiers truncate to fit. Default 1800.",
+      "type": "integer",
+      "minimum": 0
+    },
     "codexBin": {
       "description": "Explicit path to the codex binary, bypassing auto-discovery.",
       "type": "string"
