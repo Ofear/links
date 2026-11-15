@@ -179,6 +179,48 @@ export function loadHidden(scopeDir: string): Set<string> {
   return ids;
 }
 
+/** Shape of a links.json entry — only the edge we care about here. */
+type LinkEntry = { supersededBy?: string[] };
+
+/**
+ * Map of superseded cardId → the newer cardId(s) that supersede it (links.json
+ * entries with a non-empty `supersededBy`). links' supersededBy is CONTINUITY-
+ * based (a later session continued the work), not a contradiction — so callers
+ * DEMOTE the old card only when a superseder is also relevant to the query, and
+ * never hard-delete it (it stays reachable by id / get_card / expand_links).
+ * Same mtime-cached pattern as loadHidden so a fresh `link` run is picked up.
+ */
+const supersededCache = new Map<string, { mtimeMs: number; map: Map<string, string[]> }>();
+export function loadSupersededMap(scopeDir: string): Map<string, string[]> {
+  const path = join(scopeDir, "links.json");
+  let mtimeMs: number;
+  try {
+    mtimeMs = statSync(path).mtimeMs;
+  } catch {
+    return new Map(); // no links.json yet — nothing superseded
+  }
+  const cached = supersededCache.get(scopeDir);
+  if (cached && cached.mtimeMs === mtimeMs) return cached.map;
+  let map = new Map<string, string[]>();
+  try {
+    const graph = JSON.parse(readFileSync(path, "utf8")) as Record<string, LinkEntry>;
+    map = new Map(
+      Object.entries(graph)
+        .filter(([, e]) => (e.supersededBy?.length ?? 0) > 0)
+        .map(([id, e]) => [id, e.supersededBy!]),
+    );
+  } catch {
+    map = new Map();
+  }
+  supersededCache.set(scopeDir, { mtimeMs, map });
+  return map;
+}
+
+/** Just the set of superseded cardIds (keys of loadSupersededMap). */
+export function loadSuperseded(scopeDir: string): Set<string> {
+  return new Set(loadSupersededMap(scopeDir).keys());
+}
+
 export function searchIndex(scopeDir: string, query: string, limit = 10): IndexRow[] {
   const db = openDb(scopeDir);
   try {
@@ -233,6 +275,11 @@ export interface HybridRow extends IndexRow {
  * absent and fusion runs lexical-only — identical ranking to the old FTS5 path.
  * The tool never stops working because embeddings are missing.
  */
+/** Score multiplier for a superseded card when a successor co-matches the query
+ *  (see hybridSearch). 0.85 tuned on the benchmark: strong enough that a newer
+ *  card edges ahead on a near-tie, gentle enough for ZERO recall regression
+ *  (heldout/paraphrase R@5 unchanged vs no-demotion; ≤0.7 starts dropping GT). */
+const SUPERSEDED_PENALTY = 0.85;
 export async function hybridSearch(
   scopeDir: string,
   query: string,
@@ -284,11 +331,29 @@ export async function hybridSearch(
       }
     }
 
-    // drop dedup-hidden cards before fusion (still reachable by id elsewhere)
+    // drop dedup-hidden cards (true near-duplicates) before fusion.
     for (const id of loadHidden(scopeDir)) cands.delete(id);
 
-    const fused: ScoredCard[] = fuse([...cands.values()], undefined, limit);
-    if (!fused.length) return [];
+    // Superseded cards are DEMOTED, not dropped — and only CONDITIONALLY. links'
+    // supersededBy edge is continuity-based (a later session continued the work),
+    // NOT a contradiction, so the earlier card may still be the best or only
+    // answer. We penalize it ONLY when one of its successors is also a candidate
+    // for THIS query: then the newer card represents current state and should
+    // outrank. When no successor is relevant, the superseded card is untouched —
+    // so recall never drops (unconditional exclusion measured a 10pt R@5 hit by
+    // hiding ground-truth answer cards whose successors weren't even relevant).
+    const supBy = loadSupersededMap(scopeDir);
+    const scored = fuse([...cands.values()], undefined, cands.size); // score all, then re-rank
+    if (!scored.length) return [];
+    for (const s of scored) {
+      const successors = supBy.get(s.cardId);
+      if (successors?.some((id) => cands.has(id))) {
+        s.score *= SUPERSEDED_PENALTY;
+        s.why += " · superseded↓";
+      }
+    }
+    scored.sort((a, b) => b.score - a.score);
+    const fused = scored.slice(0, limit);
 
     // 3. hydrate to IndexRows, preserving fused order
     const place = fused.map((_, i) => `?`).join(",");

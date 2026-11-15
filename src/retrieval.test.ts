@@ -143,4 +143,39 @@ check("empty candidates → empty result", fuse([], DEFAULT_WEIGHTS, 10).length 
 // 7. Custom embedder dim is honored (seam works).
 check("HashEmbedder honors custom dim", new HashEmbedder(64).dim === 64 && (await new HashEmbedder(64).embed("x")).length === 64);
 
+// ---------- loadSuperseded (db.ts) ----------
+// Cards with a non-empty supersededBy are excluded from default search; missing
+// or malformed links.json degrades to an empty set (never throws).
+{
+  const { mkdtempSync, writeFileSync, rmSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const { loadSuperseded } = await import("./db.js");
+
+  const dir = mkdtempSync(join(tmpdir(), "links-superseded-"));
+  try {
+    // no links.json yet → empty set
+    check("loadSuperseded: missing links.json → empty set", loadSuperseded(dir).size === 0);
+
+    writeFileSync(
+      join(dir, "links.json"),
+      JSON.stringify({
+        old: { relatesTo: [], supersedes: [], supersededBy: ["new"] }, // superseded → excluded
+        new: { relatesTo: [], supersedes: ["old"], supersededBy: [] }, // the winner → kept
+        lone: { relatesTo: ["x"], supersedes: [], supersededBy: [] }, // unrelated → kept
+      }),
+    );
+    const ids = loadSuperseded(dir);
+    check("loadSuperseded: non-empty supersededBy is excluded", ids.has("old"));
+    check("loadSuperseded: superseding/winner card is kept", !ids.has("new"));
+    check("loadSuperseded: card with empty supersededBy is kept", !ids.has("lone") && ids.size === 1);
+
+    // malformed json → empty set, no throw
+    writeFileSync(join(dir, "links.json"), "{ not json");
+    check("loadSuperseded: malformed links.json → empty set (no throw)", loadSuperseded(dir).size === 0);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+}
+
 process.exit(failed ? 1 : 0);

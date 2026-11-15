@@ -20,7 +20,7 @@
     "prepare": "npm run build",
     "ingest": "tsx src/cli.ts ingest",
     "init": "node bin/links.js init",
-    "test": "tsx src/scanner.test.ts && tsx src/config.test.ts && tsx src/retrieval.test.ts",
+    "test": "tsx src/scanner.test.ts && tsx src/config.test.ts && tsx src/retrieval.test.ts && tsx src/inject.test.ts",
     "typecheck": "tsc --noEmit",
     "prepublishOnly": "npm run build"
   },
